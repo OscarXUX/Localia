@@ -6,17 +6,18 @@ class Business {
   final String category;
   final double rating;
   final IconData icon;
-  // Coordenadas para el mapa (valores de 0.0 a 1.0 para posicionamiento relativo)
   final double mapX;
   final double mapY;
+  final int priceLevel; // 1: Económico, 2: Medio, 3: Premium
 
   Business({
-    required this.id, 
-    required this.name, 
-    required this.category, 
-    this.rating = 4.5,
-    this.icon = Icons.store,
-    this.mapX = 0.5,
-    this.mapY = 0.5,
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.rating,
+    required this.icon,
+    required this.mapX,
+    required this.mapY,
+    this.priceLevel = 1, // Valor por defecto
   });
 }

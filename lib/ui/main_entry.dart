@@ -9,6 +9,6 @@ class MainEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<LocaliaProvider>(context);
-    return state.isAdmin ? const AdminPortal() : const TouristPortal();
+    return state.isAdmin ? const AdminScreen() : const TouristPortal();
   }
 }

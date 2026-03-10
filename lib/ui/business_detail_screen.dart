@@ -14,7 +14,30 @@ class BusinessDetailScreen extends StatelessWidget {
         const SizedBox(height: 50),
         Icon(business.icon, size: 100, color: Colors.green),
         const SizedBox(height: 50),
-        ElevatedButton(onPressed: () => Provider.of<LocaliaProvider>(context, listen: false).simulateAction(context, "Pago exitoso con Coppel Pay"), child: const Text("Pagar con Coppel Pay")),
+        // Busca donde dice .simulateAction y cámbialo por:
+                  // Este es el botón que debes poner donde tenías el error
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF008F39), // Verde Coppel
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              elevation: 5,
+            ),
+            onPressed: () {
+              // La lógica de compra va AQUÍ adentro, no suelta en el Column
+              Provider.of<LocaliaProvider>(context, listen: false)
+                  .makePurchase(150.0, business.name);
+                  
+              // Opcional: Volver atrás después de pagar
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Procesando pago con Coppel Pay...'))
+              );
+            },
+            child: const Text(
+              "Pagar con Coppel Pay",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
       ])),
     );
   }
