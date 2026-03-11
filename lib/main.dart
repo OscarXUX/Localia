@@ -5,7 +5,9 @@ import 'providers/localia_provider.dart';
 import 'theme/app_theme.dart';
 import 'ui/splash_screen.dart';
 
-void main() => runApp(
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
   MultiProvider(
     providers: [ChangeNotifierProvider(create: (_) => LocaliaProvider())],
     child: const MaterialApp(
@@ -13,4 +15,4 @@ void main() => runApp(
       home: SplashScreen(),
     ),
   ),
-);
+);}

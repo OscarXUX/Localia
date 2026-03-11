@@ -26,8 +26,13 @@ class BusinessDetailScreen extends StatelessWidget {
             onPressed: () {
               // La lógica de compra va AQUÍ adentro, no suelta en el Column
               Provider.of<LocaliaProvider>(context, listen: false)
-                  .makePurchase(150.0, business.name);
-                  
+                  .makePurchase(business.price.toDouble(), business.name);
+              
+              // 2. IMPORTANTE: Regresamos al mapa (TouristScreen) 
+              // para que el usuario vea el Overlay de éxito.
+              if (context.mounted) {
+                Navigator.pop(context); 
+              }
               // Opcional: Volver atrás después de pagar
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Procesando pago con Coppel Pay...'))

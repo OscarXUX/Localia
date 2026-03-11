@@ -51,8 +51,7 @@ class AdminScreen extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: state.businesses.length,
-                  itemBuilder: (context, index) => _buildBusinessItem(state.businesses[index]),
-                ),
+                  itemBuilder: (context, index) => _buildBusinessItem(context, state.businesses[index]),                ),
             const SizedBox(height: 100), // Espacio para el FAB
           ],
         ),
@@ -126,10 +125,10 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBusinessItem(dynamic biz) {
+    Widget _buildBusinessItem(BuildContext context, dynamic biz) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
@@ -142,7 +141,22 @@ class AdminScreen extends StatelessWidget {
         ),
         title: Text(biz.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(biz.category, style: const TextStyle(fontSize: 12)),
-        trailing: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+        trailing: PopupMenuButton<String>(
+          icon: const Icon(Icons.more_horiz_rounded, color: Colors.grey),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          onSelected: (value) {
+            if (value == 'edit') {
+              // Lógica para editar (la veremos en el siguiente paso)
+              _navigateToEdit(context, biz);
+            } else if (value == 'delete') {
+              _confirmDelete(context, biz);
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'edit', child: Text("Editar")),
+            const PopupMenuItem(value: 'delete', child: Text("Eliminar", style: TextStyle(color: Colors.red))),
+          ],
+        ),
       ),
     );
   }
@@ -161,4 +175,31 @@ class AdminScreen extends StatelessWidget {
   Widget _buildEmptyState() {
     return const Center(child: Text("Sin negocios aún", style: TextStyle(color: Colors.grey)));
   }
+  void _confirmDelete(BuildContext context, dynamic biz) {
+  showDialog(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text("¿Eliminar negocio?"),
+      content: Text("Esta acción eliminará a '${biz.name}' de forma permanente."),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
+        TextButton(
+          onPressed: () {
+            Provider.of<LocaliaProvider>(context, listen: false).deleteBusiness(biz.id);
+            Navigator.pop(c);
+          }, 
+          child: const Text("Eliminar", style: TextStyle(color: Colors.red))
+        ),
+      ],
+    ),
+  );
+}
+
+void _navigateToEdit(BuildContext context, dynamic biz) {
+  // Aquí reutilizaremos el AddBusinessScreen pero pasándole los datos
+  Navigator.push(
+    context, 
+    MaterialPageRoute(builder: (c) => AddBusinessScreen(businessToEdit: biz))
+  );
+}
 }
