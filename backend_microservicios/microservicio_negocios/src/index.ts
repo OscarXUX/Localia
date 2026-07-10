@@ -11,5 +11,5 @@ app.use(express.json());
 app.use(apiRoutes);
 // Iniciar servidor local
 app.listen(PORT, () => {
- console.log(`🚀 Microservicio de Negocios de Localia activo en: http://loca
+ console.log(`🚀 Microservicio de Negocios de Localia activo en: http://localhost:${PORT}`);
 });

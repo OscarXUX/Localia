@@ -44,7 +44,7 @@ export const getNegocios = (req: Request, res: Response) => {
     };
 export const createNegocio = (req: Request, res: Response) => {
     try {
-        const { name, category, description, location, rating, isActive } = req
+        const { name, category, description, location, rating, isActive } = req.body;
         const nuevoNegocio: INegocio = {
         id: uuidv4(),
         name,
