@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http; // <-- Librería oficial agregada para microservicios
 import '../models/business.dart';
+import '../config/constants.dart';
 
 // Modelo para los eventos del mundial
 class WorldCupEvent {
@@ -20,6 +22,7 @@ class LocaliaProvider with ChangeNotifier {
   bool _isProcessing = false;
   bool _isLoaded = false;
   bool _showSuccess = false;
+  bool _isLoadingBackend = false; // <-- Controla el spinner de carga de red
 
   List<Business> _allBusinesses = [];
   List<String> _favoriteIds = [];
@@ -35,9 +38,13 @@ class LocaliaProvider with ChangeNotifier {
   }
 
   Future<void> _init() async {
+    // 1. Cargamos rápido del almacenamiento local lo que tengamos guardado
     await _loadFromDisk();
     _isLoaded = true;
-    print("🚀 LocaliaProvider: Datos listos.");
+    print("🚀 LocaliaProvider: Caché local lista. Sincronizando con microservicio...");
+    
+    // 2. Intentamos jalar los datos reales del mapa en segundo plano sin bloquear la UI
+    cargarNegociosDesdeBackend();
   }
 
   // --- GETTERS ---
@@ -47,6 +54,7 @@ class LocaliaProvider with ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isProcessing => _isProcessing;
   bool get showSuccess => _showSuccess;
+  bool get isLoadingBackend => _isLoadingBackend; // <-- Getter expuesto para la UI
   List<Business> get businesses => _allBusinesses;
   List<Business> get filteredBusinesses => _allBusinesses;
   List<String> get favorites => _favoriteIds;
@@ -54,8 +62,40 @@ class LocaliaProvider with ChangeNotifier {
   List<WorldCupEvent> get events => _events;
 
   // ---------------------------------------------------------
-  // 2. LÓGICA DE PERSISTENCIA
+  // 2. LÓGICA DE PERSISTENCIA Y MICROSERVICIOS
   // ---------------------------------------------------------
+
+  /// Se conecta al microservicio de Node.js para actualizar el catálogo
+  Future<void> cargarNegociosDesdeBackend() async {
+    _isLoadingBackend = true;
+    notifyListeners();
+
+    // Construimos la URL usando el archivo de constantes dinámico
+    final url = Uri.parse('${AppConfig.baseUrl}/negocios');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> decodedBody = json.decode(response.body);
+        final List<dynamic> dataJson = decodedBody['data'];
+        
+        // Mapeamos el arreglo del servidor al modelo interno de Flutter
+        _allBusinesses = dataJson.map((json) => Business.fromJson(json)).toList();
+        
+        // Sobrescribimos en el almacenamiento local para soporte offline
+        await _saveToDisk();
+      } else {
+        debugPrint("❌ Error de respuesta del servidor: ${response.statusCode}");
+      }
+    } catch (e) {
+      // Si el servidor está apagado, se mantendrán los datos cargados desde el disco de manera segura
+      debugPrint("❌ No se pudo conectar al microservicio backend: $e");
+    } finally {
+      _isLoadingBackend = false;
+      notifyListeners(); // Redibuja mapas y componentes dinámicamente
+    }
+  }
 
   Future<void> _saveToDisk() async {
     if (!_isLoaded) return;
@@ -71,7 +111,7 @@ class LocaliaProvider with ChangeNotifier {
       List<String> bizJsonList = _allBusinesses.map((b) => jsonEncode(b.toJson())).toList();
       await prefs.setStringList('businesses', bizJsonList);
     } catch (e) {
-      debugPrint("❌ Error al guardar: $e");
+      debugPrint("❌ Error al guardar en disco duro: $e");
     }
   }
 
@@ -89,6 +129,7 @@ class LocaliaProvider with ChangeNotifier {
       if (savedBiz != null && savedBiz.isNotEmpty) {
         _allBusinesses = savedBiz.map((item) => Business.fromJson(jsonDecode(item))).toList();
       } else {
+        // Datos de respaldo iniciales por si es el primer arranque y no hay red
         _allBusinesses = [
           Business(id: '1', name: 'Tacos El Mundial', category: 'Comida', rating: 4.9, icon: Icons.restaurant, mapX: 0.2, mapY: 0.4),
           Business(id: '2', name: 'Artesanías GTO', category: 'Artesanía', rating: 4.8, icon: Icons.palette, mapX: 0.7, mapY: 0.5),
@@ -96,7 +137,7 @@ class LocaliaProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint("❌ Error al cargar: $e");
+      debugPrint("❌ Error al cargar de disco duro: $e");
     }
   }
 
@@ -104,18 +145,13 @@ class LocaliaProvider with ChangeNotifier {
   // 3. MÉTODOS DE ACCIÓN
   // ---------------------------------------------------------
 
-  /// --- NUEVA FUNCIÓN: Agrega una reseña a un negocio específico ---
   void addReviewToBusiness(String businessId, String review) {
-    // 1. Buscamos el negocio en la lista por su ID
     final index = _allBusinesses.indexWhere((b) => b.id == businessId);
     
     if (index != -1) {
       final business = _allBusinesses[index];
-      
-      // 2. Creamos una copia de la lista de reseñas y agregamos la nueva al principio
       final updatedReviews = List<String>.from(business.reviews)..insert(0, review);
       
-      // 3. Como los campos del modelo Business son final, creamos una nueva instancia actualizada
       _allBusinesses[index] = Business(
         id: business.id,
         name: business.name,
@@ -131,10 +167,9 @@ class LocaliaProvider with ChangeNotifier {
         representative: business.representative,
         schedule: business.schedule,
         photos: business.photos,
-        reviews: updatedReviews, // <-- Aquí inyectamos la lista con el comentario nuevo
+        reviews: updatedReviews,
       );
       
-      // 4. Guardamos el cambio en el disco y notificamos a la UI
       _saveToDisk();
       notifyListeners();
     }
@@ -175,6 +210,15 @@ class LocaliaProvider with ChangeNotifier {
     }
     _saveToDisk();
     notifyListeners();
+  }
+
+  void auditarSeguridadSandbox() {
+    debugPrint("🔒 AUDITORÍA DE SEGURIDAD NATIVA - SANDBOX LOCALIA");
+    debugPrint(" Saldo Disponible Wallet: ${_balance} MXN");
+    debugPrint(" Puntos Coppel Acumulados: ${_coppelPoints}");
+    debugPrint(" Impacto Social en Sedes Mundial: ${_totalSocialImpact} MXN");
+    debugPrint(" Rol de Usuario actual: ${_isAdmin ? 'ADMINISTRADOR' : 'TURISTA'}");
+    debugPrint(" Número de PyMEs Registradas en Disco: ${_allBusinesses.length}");
   }
 
   bool isFavorite(String id) => _favoriteIds.contains(id);

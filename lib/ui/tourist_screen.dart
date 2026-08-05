@@ -9,8 +9,23 @@ import 'profile_screen.dart';
 import 'business_detail_screen.dart';
 import 'package:localia/ui/widgets/success_overlay.dart';
 
-class TouristPortal extends StatelessWidget {
+class TouristPortal extends StatefulWidget {
   const TouristPortal({super.key});
+
+  @override
+  State<TouristPortal> createState() => _TouristPortalState();
+}
+
+class _TouristPortalState extends State<TouristPortal> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // Dispara la consulta al microservicio en segundo plano al cargar la vista
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<LocaliaProvider>(context, listen: false).cargarNegociosDesdeBackend();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +46,7 @@ class TouristPortal extends StatelessWidget {
                   const SizedBox(height: 10),
                   _buildAppleHeader(context, state),
                   const SizedBox(height: 15),
-                  _buildWorldCupTicker(state), // Barra roja corregida
+                  _buildWorldCupTicker(state),
                   const Spacer(),
                   _buildBusinessCarousel(state),
                   const SizedBox(height: 10),
@@ -40,7 +55,7 @@ class TouristPortal extends StatelessWidget {
             ),
           ),
           
-          // 3. OVERLAY DE CARGA: Se activa durante las transacciones
+          // 3. OVERLAY DE CARGA: Se activa durante las transacciones locales
           if (state.isProcessing)
             Container(
               color: Colors.black26, 
@@ -67,6 +82,10 @@ class TouristPortal extends StatelessWidget {
       ),
       child: Stack(
         children: [
+          // Si está cargando el backend y aún no hay datos, mostramos un indicador central
+          if (state.isLoadingBackend && state.filteredBusinesses.isEmpty)
+            const Center(child: CircularProgressIndicator(color: LocaliaTheme.coppelGreen)),
+            
           ...state.filteredBusinesses.map((biz) => Positioned(
             left: MediaQuery.of(context).size.width * biz.mapX,
             top: MediaQuery.of(context).size.height * biz.mapY,
@@ -84,7 +103,6 @@ class TouristPortal extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 15),
-          // SEGURO: Expanded para que el saldo no empuje a los avatares
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,7 +138,6 @@ class TouristPortal extends StatelessWidget {
     );
   }
 
-  // EL FIX DEL PIXELAZO ESTÁ AQUÍ
   Widget _buildWorldCupTicker(LocaliaProvider state) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -135,7 +152,6 @@ class TouristPortal extends StatelessWidget {
         children: [
           const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 20),
           const SizedBox(width: 12),
-          // USAMOS EXPANDED: Esto obliga al texto a no salirse de la pantalla
           Expanded(
             child: Text(
               state.events[0].matchTitle, 
@@ -144,8 +160,8 @@ class TouristPortal extends StatelessWidget {
                 fontWeight: FontWeight.bold, 
                 letterSpacing: 0.5
               ),
-              overflow: TextOverflow.ellipsis, // Si es muy largo, pone "..."
-              maxLines: 1, // Mantiene todo en una sola fila
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],
@@ -154,6 +170,24 @@ class TouristPortal extends StatelessWidget {
   }
 
   Widget _buildBusinessCarousel(LocaliaProvider state) {
+    // Si la red está activa y no hay datos locales, ponemos un esqueleto visual de carga
+    if (state.isLoadingBackend && state.filteredBusinesses.isEmpty) {
+      return const SizedBox(
+        height: 180,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: LocaliaTheme.coppelGreen),
+              SizedBox(height: 10),
+              Text("Cargando comercios de Guanajuato...", 
+                style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 180,
       child: ListView.builder(
@@ -192,7 +226,7 @@ class _MapMarker extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
           border: Border.all(color: LocaliaTheme.coppelGreen, width: 2),
         ),
         child: Icon(business.icon, color: LocaliaTheme.coppelGreen, size: 24),
