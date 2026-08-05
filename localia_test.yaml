@@ -1,0 +1,17 @@
+appId: "com.oscar.localia" # Tu ID de paquete configurado en Flutter
+---
+# 1. PRUEBA DE NAVEGACIÓN Y VISTA DE DETALLE
+- launchApp
+- tapOn: "Tacos El Mundial" # Selecciona el local en el carrusel o mapa
+- assertVisible: "Sobre este anfitrión" # Valida que cargue la descripción completa
+- assertVisible: "Horario de atención" # Asegura la lectura del horario
+
+# 2. PRUEBA DE PAGO INTEGRADO (DIFERENCIADOR COPPEL PAY)
+- tapOn: "PAGAR CON COPPEL PAY" # Activa el modo de pago dinámico
+- inputText: "150" # Ingresa un monto de prueba válido
+- tapOn: "CONFIRMAR TRANSACCIÓN" # Confirma la compra segura
+
+# 3. VERIFICACIÓN DEL OVERLAY DE ÉXITO (ANIMACIÓN Y MENSAJE)
+- delay: 2000 # Espera los 1.8 segundos de latencia simulada de red
+- assertVisible: "PAGO COMPLETADO!" # Verifica el overlay esmerilado
+- tapOn: "Entendido" # Cierra el SuccessOverlay regresando al mapa operacional
