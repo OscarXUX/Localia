@@ -22,7 +22,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
   final PageController _pageController = PageController();
- 
+  
   bool _isPaymentMode = false;
 
   @override
@@ -41,7 +41,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         slivers: [
           // CABECERA: Carrusel que soporta URLs de internet y fotos tomadas con la cámara
           _buildSliverCarousel(),
-         
+          
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -50,16 +50,16 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 children: [
                   _buildMainHeader(),
                   const SizedBox(height: 16),
-                 
+                  
                   // Insignia de respaldo Localia & Coppel Pay
                   _buildVerifiedBadge(),
                   const SizedBox(height: 25),
-                 
+                  
                   _buildSectionTitle("Sobre este anfitrión"),
                   const SizedBox(height: 8),
                   Text(
-                    widget.business.description.isEmpty
-                        ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región."
+                    widget.business.description.isEmpty 
+                        ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región." 
                         : widget.business.description,
                     style: TextStyle(color: Colors.grey[800], fontSize: 15, height: 1.6),
                   ),
@@ -68,7 +68,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   _buildInfoTile(Icons.access_time_filled_rounded, "Horario de atención", widget.business.schedule),
                   _buildInfoTile(Icons.location_on_rounded, "Ubicación", widget.business.address),
                   _buildInfoTile(Icons.phone_rounded, "Contacto directo", widget.business.phone),
-                 
+                  
                   const SizedBox(height: 35),
 
                   // LÓGICA DE PAGO: Botón inicial de Coppel Pay o formulario de monto
@@ -85,7 +85,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   const SizedBox(height: 30),
                   _buildSectionTitle("Opiniones de la comunidad"),
                   const SizedBox(height: 15),
-                 
+                  
                   // Lista de reseñas del Provider
                   if (widget.business.reviews.isEmpty)
                     Container(
@@ -97,14 +97,14 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: const Text(
-                        "Aún no hay reseñas registradas. ¡Sé el primer turista en opinar!",
+                        "Aún no hay reseñas registradas. ¡Sé el primer turista en opinar!", 
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                       ),
                     )
                   else
                     ...widget.business.reviews.map((comment) => _buildReviewBubble(comment)).toList(),
-                 
+                  
                   const SizedBox(height: 80),
                 ],
               ),
@@ -130,7 +130,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           children: [
             Expanded(
               child: Text(
-                widget.business.name,
+                widget.business.name, 
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1.0, color: Colors.black87),
               ),
             ),
@@ -138,7 +138,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.amber.shade50,
+                color: Colors.amber.shade50, 
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.amber.shade200),
               ),
@@ -147,7 +147,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
                   const SizedBox(width: 4),
                   Text(
-                    widget.business.rating.toStringAsFixed(1),
+                    widget.business.rating.toStringAsFixed(1), 
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
                   ),
                 ],
@@ -157,7 +157,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          widget.business.category.toUpperCase(),
+          widget.business.category.toUpperCase(), 
           style: const TextStyle(color: LocaliaTheme.coppelGreen, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 13),
         ),
       ],
@@ -214,8 +214,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 itemBuilder: (context, index) {
                   String imagePath = photos[index];
                   return Image(
-                    image: imagePath.startsWith('http')
-                        ? NetworkImage(imagePath)
+                    image: imagePath.startsWith('http') 
+                        ? NetworkImage(imagePath) 
                         : FileImage(File(imagePath)) as ImageProvider,
                     fit: BoxFit.cover,
                   );
@@ -321,13 +321,13 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             autofocus: true,
             style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900, color: LocaliaTheme.coppelGreen),
             decoration: const InputDecoration(
-              hintText: "\$0.00",
+              hintText: "\$0.00", 
               hintStyle: TextStyle(color: Colors.grey),
               border: InputBorder.none,
             ),
           ),
           const SizedBox(height: 10),
-         
+          
           // Chips de selecciones rápidas para facilitar pruebas
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -359,7 +359,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 if (amount != null && amount > 0) {
                   Provider.of<LocaliaProvider>(context, listen: false)
                       .makePurchase(amount, widget.business.name);
-                 
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text("¡Pago de \$$amount enviado a ${widget.business.name}!"),
@@ -401,10 +401,10 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   if (_reviewController.text.trim().isNotEmpty) {
                     Provider.of<LocaliaProvider>(context, listen: false)
                         .addReviewToBusiness(widget.business.id, _reviewController.text.trim());
-                   
+                    
                     _reviewController.clear();
                     FocusScope.of(context).unfocus();
-                   
+                    
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("¡Tu reseña se ha publicado con éxito!"))
                     );
@@ -472,7 +472,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.white, 
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.grey.shade200),
             ),

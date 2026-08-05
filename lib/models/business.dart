@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 /// Actúa como un contenedor de datos (Data Class) que facilita el paso de información
 /// entre el Administrador, el Mapa y la pantalla de Detalle del Turista.
 class Business {
-  // ---------------------------------------------------------
+
   // 1. ATRIBUTOS (Propiedades del Negocio)
-  // ---------------------------------------------------------
   
   final String id;          // Identificador único (usamos un timestamp o UUID)
   final String name;        // Nombre comercial del local
@@ -29,9 +28,7 @@ class Business {
   final List<String> photos;   // Rutas (paths) o URLs de las imágenes para el carrusel
   final List<String> reviews;  // Lista de textos con los comentarios de los clientes
 
-  // ---------------------------------------------------------
   // 2. CONSTRUCTOR
-  // ---------------------------------------------------------
   Business({
     required this.id,
     required this.name,
@@ -82,25 +79,24 @@ class Business {
   // ---------------------------------------------------------
   /// El [factory constructor] toma un Mapa (normalmente recuperado de disco)
   /// y reconstruye el objeto [Business] para que la app pueda usarlo de nuevo.
-  factory Business.fromJson(Map<String, dynamic> json) => Business(
-    id: json['id'],
-    name: json['name'],
-    category: json['category'],
-    rating: json['rating'],
-    // Reconstruimos el icono usando el código numérico guardado y la fuente Material
-    icon: IconData(json['iconCode'], fontFamily: 'MaterialIcons'),
-    mapX: json['mapX'],
-    mapY: json['mapY'],
-    priceLevel: json['priceLevel'],
-    // Usamos el operador ?? para asignar valores vacíos si el dato no existe (seguridad)
-    description: json['description'] ?? "",
-    address: json['address'] ?? "",
-    phone: json['phone'] ?? "",
-    representative: json['representative'] ?? "",
-    rfc: json['rfc'] ?? "",
-    schedule: json['schedule'] ?? "09:00 - 21:00",
-    // Convertimos explícitamente las listas de JSON a List<String> de Dart
-    photos: List<String>.from(json['photos'] ?? []),
-    reviews: List<String>.from(json['reviews'] ?? []),
+  factory Business.fromJson(Map<String, dynamic> json) {
+  // Extraemos la ubicación de forma segura por si viene anidada
+  final location = json['location'] as Map<String, dynamic>?;
+  
+  return Business(
+    id: json['id']?.toString() ?? '',
+    name: json['name'] ?? '',
+    category: json['category'] ?? '',
+    description: json['description'] ?? '',
+    rating: (json['rating'] as num?)?.toDouble() ?? 4.0,
+    
+    // Asignamos un icono por defecto según la categoría que mande Node.js
+    icon: json['category'] == 'Gastronomía' ? Icons.restaurant : Icons.storefront,
+    
+    // Mapeo temporal: Como el mapa actual es una imagen fija, puedes calcular 
+    // una aproximación en lo que integran la telemetría real del mapa interactivo
+    mapX: location != null ? 0.4 : 0.5, 
+    mapY: location != null ? 0.4 : 0.5,
   );
+}
 }
