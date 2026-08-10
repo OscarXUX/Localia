@@ -1,7 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http; // <-- Librería oficial agregada para microservicios
+import 'package:http/http.dart' as http;
 import '../models/business.dart';
 import '../config/constants.dart';
 
@@ -13,20 +14,32 @@ class WorldCupEvent {
 
 class LocaliaProvider with ChangeNotifier {
   // ---------------------------------------------------------
-  // 1. ESTADO DE LA APP
+  // 1. ESTADO DE LA APP Y RED
   // ---------------------------------------------------------
+  
+  // IP Dinámica: Detecta si estás en el emulador de Android (10.0.2.2) o en tu PC (localhost)
+  final String _ip = kIsWeb ? 'localhost' : (defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost');
+
+  // Datos de Wallet (Puerto 3001)
   double _balance = 2500.0;
   int _coppelPoints = 450;
   double _totalSocialImpact = 1250.0;
+  List<String> _history = ["Carga inicial: + 2500.00"];
+
+  // Datos de Usuarios (Puerto 3003) y Promociones (Puerto 3004)
+  Map<String, dynamic> perfilUsuario = {};
+  List<dynamic> cuponesActivos = [];
+
+  // Datos de Negocios (Puerto 3000)
+  List<Business> _allBusinesses = [];
+  List<String> _favoriteIds = [];
+
+  // Variables de control de UI
   bool _isAdmin = false;
   bool _isProcessing = false;
   bool _isLoaded = false;
   bool _showSuccess = false;
-  bool _isLoadingBackend = false; // <-- Controla el spinner de carga de red
-
-  List<Business> _allBusinesses = [];
-  List<String> _favoriteIds = [];
-  List<String> _history = ["Carga inicial: + 2500.00"];
+  bool _isLoadingBackend = false; 
   
   final List<WorldCupEvent> _events = [
     WorldCupEvent(matchTitle: "🇲🇽 México vs 🇩🇪 Alemania - 18:00 hrs"),
@@ -41,59 +54,80 @@ class LocaliaProvider with ChangeNotifier {
     // 1. Cargamos rápido del almacenamiento local lo que tengamos guardado
     await _loadFromDisk();
     _isLoaded = true;
-    print("🚀 LocaliaProvider: Caché local lista. Sincronizando con microservicio...");
+    debugPrint("🚀 LocaliaProvider: Caché local lista. Sincronizando con los 5 microservicios...");
     
-    // 2. Intentamos jalar los datos reales del mapa en segundo plano sin bloquear la UI
-    cargarNegociosDesdeBackend();
+    // 2. Intentamos jalar los datos reales de todo el ecosistema en segundo plano
+    await sincronizarEcosistema();
   }
 
-  // --- GETTERS ---
+  // --- GETTERS (Expuestos para la UI) ---
   double get balance => _balance;
   int get coppelPoints => _coppelPoints;
   double get totalSocialImpact => _totalSocialImpact;
   bool get isAdmin => _isAdmin;
   bool get isProcessing => _isProcessing;
   bool get showSuccess => _showSuccess;
-  bool get isLoadingBackend => _isLoadingBackend; // <-- Getter expuesto para la UI
+  bool get isLoadingBackend => _isLoadingBackend;
+  
   List<Business> get businesses => _allBusinesses;
   List<Business> get filteredBusinesses => _allBusinesses;
   List<String> get favorites => _favoriteIds;
   List<String> get history => _history;
   List<WorldCupEvent> get events => _events;
+  
+  // Nuevos Getters para el Perfil y Promociones
+  Map<String, dynamic> get perfil => perfilUsuario;
+  List<dynamic> get cupones => cuponesActivos;
 
   // ---------------------------------------------------------
-  // 2. LÓGICA DE PERSISTENCIA Y MICROSERVICIOS
+  // 2. LÓGICA DE PERSISTENCIA Y MICROSERVICIOS (LECTURA)
   // ---------------------------------------------------------
 
-  /// Se conecta al microservicio de Node.js para actualizar el catálogo
-  Future<void> cargarNegociosDesdeBackend() async {
+  /// Se conecta a los múltiples microservicios de Node.js para actualizar la app
+  Future<void> sincronizarEcosistema() async {
     _isLoadingBackend = true;
     notifyListeners();
 
-    // Construimos la URL usando el archivo de constantes dinámico
-    final url = Uri.parse('${AppConfig.baseUrl}/negocios');
-
     try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> decodedBody = json.decode(response.body);
-        final List<dynamic> dataJson = decodedBody['data'];
-        
-        // Mapeamos el arreglo del servidor al modelo interno de Flutter
+      // 1. Petición al Microservicio de Negocios (Puerto 3000)
+      final resNegocios = await http.get(Uri.parse('http://$_ip:3000/api/v1/negocios'));
+      if (resNegocios.statusCode == 200) {
+        final List<dynamic> dataJson = json.decode(resNegocios.body)['data'];
         _allBusinesses = dataJson.map((json) => Business.fromJson(json)).toList();
-        
-        // Sobrescribimos en el almacenamiento local para soporte offline
-        await _saveToDisk();
-      } else {
-        debugPrint("❌ Error de respuesta del servidor: ${response.statusCode}");
       }
+
+      // 2. Petición al Microservicio de Wallet (Puerto 3001)
+      final resWallet = await http.get(Uri.parse('http://$_ip:3001/api/v1/wallet'));
+      if (resWallet.statusCode == 200) {
+        final dataWallet = json.decode(resWallet.body)['data'];
+        _balance = (dataWallet['balance'] as num).toDouble();
+        _coppelPoints = dataWallet['coppelPoints'];
+        _totalSocialImpact = (dataWallet['totalSocialImpact'] as num).toDouble();
+        _history = List<String>.from(dataWallet['history']);
+      }
+
+      // 3. Petición al Microservicio de Usuarios (Puerto 3003)
+      final resUsuario = await http.get(Uri.parse('http://$_ip:3003/api/v1/usuarios/perfil'));
+      if (resUsuario.statusCode == 200) {
+        perfilUsuario = json.decode(resUsuario.body)['data'];
+      }
+
+      // 4. Petición al Microservicio de Promociones (Puerto 3004)
+      final resPromos = await http.get(Uri.parse('http://$_ip:3004/api/v1/promociones'));
+      if (resPromos.statusCode == 200) {
+        cuponesActivos = json.decode(resPromos.body)['data'];
+      }
+
+      // Sobrescribimos en el almacenamiento local para soporte offline
+      await _saveToDisk();
+      debugPrint("✅ Ecosistema Localia sincronizado con éxito.");
+      
     } catch (e) {
-      // Si el servidor está apagado, se mantendrán los datos cargados desde el disco de manera segura
-      debugPrint("❌ No se pudo conectar al microservicio backend: $e");
+      // Si los servidores están apagados, se mantendrán los datos cargados desde el disco duro
+      debugPrint("❌ Error al conectar con los microservicios (Usando caché offline): $e");
     } finally {
       _isLoadingBackend = false;
-      notifyListeners(); // Redibuja mapas y componentes dinámicamente
+      notifyListeners(); // Redibuja toda la interfaz con los datos frescos
     }
   }
 
@@ -142,10 +176,11 @@ class LocaliaProvider with ChangeNotifier {
   }
 
   // ---------------------------------------------------------
-  // 3. MÉTODOS DE ACCIÓN
+  // 3. MÉTODOS DE ACCIÓN Y NEGOCIO (ESCRITURA A BACKEND)
   // ---------------------------------------------------------
 
-  void addReviewToBusiness(String businessId, String review) {
+  Future<void> addReviewToBusiness(String businessId, String review) async {
+    // 1. Actualización visual instantánea en la app (Optimistic UI)
     final index = _allBusinesses.indexWhere((b) => b.id == businessId);
     
     if (index != -1) {
@@ -170,19 +205,49 @@ class LocaliaProvider with ChangeNotifier {
         reviews: updatedReviews,
       );
       
-      _saveToDisk();
+      await _saveToDisk();
       notifyListeners();
+    }
+
+    // 2. Envío al Microservicio de Reseñas (Puerto 3002)
+    try {
+      await http.post(
+        Uri.parse('http://$_ip:3002/api/v1/resenas'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'businessId': businessId,
+          'touristName': perfilUsuario.isNotEmpty ? perfilUsuario['name'] : 'Turista Localia',
+          'comment': review,
+          'rating': 5
+        }),
+      );
+      debugPrint("✅ Reseña publicada en el servidor 3002.");
+    } catch (e) {
+      debugPrint("⚠️ No se pudo enviar al servidor, pero se guardó en el celular: $e");
+    }
+  }
+
+  Future<void> addBusiness(Business business) async {
+    // 1. Actualización visual instantánea en la app (Optimistic UI)
+    _allBusinesses.add(business);
+    await _saveToDisk();
+    notifyListeners();
+
+    // 2. Envío al Microservicio de Negocios (Puerto 3000)
+    try {
+      await http.post(
+        Uri.parse('http://$_ip:3000/api/v1/negocios'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(business.toJson()), // Convertimos el negocio a JSON para que Node lo entienda
+      );
+      debugPrint("✅ Negocio publicado en el servidor 3000.");
+    } catch (e) {
+      debugPrint("⚠️ No se pudo enviar al servidor, pero se guardó en el celular: $e");
     }
   }
 
   void setRole(bool value) {
     _isAdmin = value;
-    _saveToDisk();
-    notifyListeners();
-  }
-
-  void addBusiness(Business business) {
-    _allBusinesses.add(business);
     _saveToDisk();
     notifyListeners();
   }
@@ -214,9 +279,9 @@ class LocaliaProvider with ChangeNotifier {
 
   void auditarSeguridadSandbox() {
     debugPrint("🔒 AUDITORÍA DE SEGURIDAD NATIVA - SANDBOX LOCALIA");
-    debugPrint(" Saldo Disponible Wallet: ${_balance} MXN");
-    debugPrint(" Puntos Coppel Acumulados: ${_coppelPoints}");
-    debugPrint(" Impacto Social en Sedes Mundial: ${_totalSocialImpact} MXN");
+    debugPrint(" Saldo Disponible Wallet: \$$_balance MXN");
+    debugPrint(" Puntos Coppel Acumulados: $_coppelPoints");
+    debugPrint(" Impacto Social en Sedes Mundial: \$$_totalSocialImpact MXN");
     debugPrint(" Rol de Usuario actual: ${_isAdmin ? 'ADMINISTRADOR' : 'TURISTA'}");
     debugPrint(" Número de PyMEs Registradas en Disco: ${_allBusinesses.length}");
   }
