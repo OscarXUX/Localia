@@ -1,5 +1,7 @@
-import &#39;package:flutter/material.dart&#39;;
-import &#39;../theme/app_theme.dart&#39;;
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../providers/localia_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
 const ProfileScreen({super.key});
