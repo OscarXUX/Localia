@@ -20,14 +20,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   
   bool _isPaymentMode = false;
 
-  // Escucha al Provider en tiempo real para redibujar la vista general
-  Business get _activeBusiness {
-    return Provider.of<LocaliaProvider>(context).businesses.firstWhere(
-      (b) => b.id == widget.business.id,
-      orElse: () => widget.business
-    );
-  }
-
   @override
   void dispose() {
     _amountController.dispose();
@@ -38,11 +30,18 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 LA SOLUCIÓN: Leer el Provider UNA SOLA VEZ de forma segura al inicio del build
+    final provider = Provider.of<LocaliaProvider>(context);
+    final activeBusiness = provider.businesses.firstWhere(
+      (b) => b.id == widget.business.id,
+      orElse: () => widget.business,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: CustomScrollView(
         slivers: [
-          _buildSliverCarousel(),
+          _buildSliverCarousel(activeBusiness),
           
           SliverToBoxAdapter(
             child: Padding(
@@ -50,7 +49,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMainHeader(),
+                  _buildMainHeader(activeBusiness),
                   const SizedBox(height: 16),
                   
                   _buildVerifiedBadge(),
@@ -59,33 +58,35 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   _buildSectionTitle("Sobre este anfitrión"),
                   const SizedBox(height: 8),
                   Text(
-                    _activeBusiness.description.isEmpty 
+                    activeBusiness.description.isEmpty 
                         ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región." 
-                        : _activeBusiness.description,
+                        : activeBusiness.description,
                     style: TextStyle(color: Colors.grey[800], fontSize: 15, height: 1.6),
                   ),
                   const SizedBox(height: 25),
 
-                  _buildInfoTile(Icons.access_time_filled_rounded, "Horario de atención", _activeBusiness.schedule),
-                  _buildInfoTile(Icons.location_on_rounded, "Ubicación", _activeBusiness.address),
-                  _buildInfoTile(Icons.phone_rounded, "Contacto directo", _activeBusiness.phone),
+                  _buildInfoTile(Icons.access_time_filled_rounded, "Horario de atención", activeBusiness.schedule),
+                  _buildInfoTile(Icons.location_on_rounded, "Ubicación", activeBusiness.address),
+                  _buildInfoTile(Icons.phone_rounded, "Contacto directo", activeBusiness.phone),
                   
                   const SizedBox(height: 35),
 
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 350),
-                    child: _isPaymentMode ? _buildPaymentInputArea() : _buildInitialPayButton(),
+                    child: _isPaymentMode 
+                        ? _buildPaymentInputArea(activeBusiness) 
+                        : _buildInitialPayButton(),
                   ),
 
                   const SizedBox(height: 40),
 
-                  _buildAddReviewSection(),
+                  _buildAddReviewSection(activeBusiness),
 
                   const SizedBox(height: 30),
                   _buildSectionTitle("Opiniones de la comunidad"),
                   const SizedBox(height: 15),
                   
-                  if (_activeBusiness.reviews.isEmpty)
+                  if (activeBusiness.reviews.isEmpty)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -101,7 +102,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                       ),
                     )
                   else
-                    ..._activeBusiness.reviews.map((comment) => _buildReviewBubble(comment)).toList(),
+                    ...activeBusiness.reviews.map((comment) => _buildReviewBubble(comment)).toList(),
                   
                   const SizedBox(height: 80),
                 ],
@@ -113,7 +114,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  Widget _buildMainHeader() {
+  Widget _buildMainHeader(Business activeBusiness) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -123,7 +124,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           children: [
             Expanded(
               child: Text(
-                _activeBusiness.name, 
+                activeBusiness.name, 
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1.0, color: Colors.black87),
               ),
             ),
@@ -140,7 +141,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
                   const SizedBox(width: 4),
                   Text(
-                    _activeBusiness.rating.toStringAsFixed(1), 
+                    activeBusiness.rating.toStringAsFixed(1), 
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
                   ),
                 ],
@@ -150,7 +151,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          _activeBusiness.category.toUpperCase(), 
+          activeBusiness.category.toUpperCase(), 
           style: const TextStyle(color: LocaliaTheme.coppelGreen, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 13),
         ),
       ],
@@ -179,8 +180,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  Widget _buildSliverCarousel() {
-    final List<String> photos = _activeBusiness.photos;
+  Widget _buildSliverCarousel(Business activeBusiness) {
+    final List<String> photos = activeBusiness.photos;
 
     return SliverAppBar(
       expandedHeight: 300,
@@ -274,7 +275,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  Widget _buildPaymentInputArea() {
+  Widget _buildPaymentInputArea(Business activeBusiness) {
     return Container(
       key: const ValueKey(2),
       padding: const EdgeInsets.all(24),
@@ -344,13 +345,12 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               onPressed: () {
                 final double? amount = double.tryParse(_amountController.text);
                 if (amount != null && amount > 0) {
-                  // 🔥 Corrección: Usar widget.business.name para evitar leer el Provider dentro del botón
                   Provider.of<LocaliaProvider>(context, listen: false)
-                      .makePurchase(amount, widget.business.name);
+                      .makePurchase(amount, activeBusiness.name);
                   
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("¡Pago de \$$amount enviado a ${widget.business.name}!"),
+                      content: Text("¡Pago de \$$amount enviado a ${activeBusiness.name}!"),
                       backgroundColor: LocaliaTheme.coppelGreen,
                     ),
                   );
@@ -365,7 +365,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  Widget _buildAddReviewSection() {
+  Widget _buildAddReviewSection(Business activeBusiness) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -386,9 +386,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 icon: const Icon(Icons.send_rounded, color: LocaliaTheme.coppelGreen),
                 onPressed: () {
                   if (_reviewController.text.trim().isNotEmpty) {
-                    // 🔥 Corrección: Usar widget.business.id aquí también
                     Provider.of<LocaliaProvider>(context, listen: false)
-                        .addReviewToBusiness(widget.business.id, _reviewController.text.trim());
+                        .addReviewToBusiness(activeBusiness.id, _reviewController.text.trim());
                     
                     _reviewController.clear();
                     FocusScope.of(context).unfocus();
