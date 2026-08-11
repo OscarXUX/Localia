@@ -332,22 +332,71 @@ class LocaliaProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // 🔥 MÉTODO ACTUALIZADO: Hacer un pago real al backend
   Future<void> makePurchase(double amount, String businessName) async {
     if (_balance >= amount) {
       _isProcessing = true;
       notifyListeners();
 
-      await Future.delayed(const Duration(milliseconds: 1800));
-
+      // 1. Optimistic UI: Actualizamos la pantalla al instante para que se sienta rápido
       _balance -= amount;
       _totalSocialImpact += amount;
       _coppelPoints += (amount * 0.1).toInt();
       _history.insert(0, "Pago en $businessName: -\$${amount.toStringAsFixed(2)}");
-      
       await _saveToDisk();
-      
+
+      // 2. Transacción Backend: Enviamos la orden al microservicio 3001
+      try {
+        final res = await http.post(
+          Uri.parse('http://$_ip:3001/api/v1/wallet/transaccion'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'amount': amount,
+            'businessName': businessName,
+          }),
+        );
+
+        if (res.statusCode == 200) {
+          debugPrint("✅ Transacción de \$$amount procesada en el servidor 3001.");
+        } else {
+          debugPrint("⚠️ El servidor rechazó el pago (Posible falta de fondos).");
+        }
+      } catch (e) {
+        debugPrint("❌ Error de red al procesar pago: $e");
+      }
+
+      // Animación de Coppel Pay 
+      await Future.delayed(const Duration(milliseconds: 1200));
+
       _isProcessing = false;
       _showSuccess = true;
+      notifyListeners();
+    }
+  }
+
+  // 🔥 NUEVA FUNCIÓN: Por si quieres agregar un botón de recarga después
+  Future<void> recargarCartera(double amount) async {
+    _isProcessing = true;
+    notifyListeners();
+
+    try {
+      final res = await http.post(
+        Uri.parse('http://$_ip:3001/api/v1/wallet/recarga'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'amount': amount}),
+      );
+
+      if (res.statusCode == 200) {
+        final newData = json.decode(res.body)['data'];
+        _balance = (newData['balance'] as num).toDouble();
+        _history = List<String>.from(newData['history']);
+        await _saveToDisk();
+        debugPrint("✅ Recarga de \$$amount exitosa.");
+      }
+    } catch (e) {
+      debugPrint("❌ Error al recargar: $e");
+    } finally {
+      _isProcessing = false;
       notifyListeners();
     }
   }
