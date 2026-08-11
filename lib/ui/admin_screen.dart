@@ -3,21 +3,41 @@ import 'package:provider/provider.dart';
 import '../providers/localia_provider.dart';
 import 'add_business_screen.dart';
 
-class AdminScreen extends StatelessWidget {
+class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
+
+  @override
+  State<AdminScreen> createState() => _AdminScreenState();
+}
+
+class _AdminScreenState extends State<AdminScreen> {
+  
+  // Controladores para el formulario de la Promoción
+  final TextEditingController _tituloController = TextEditingController();
+  final TextEditingController _descuentoController = TextEditingController();
+  final TextEditingController _descController = TextEditingController();
+  final TextEditingController _expiracionController = TextEditingController();
+  final _formPromoKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _tituloController.dispose();
+    _descuentoController.dispose();
+    _descController.dispose();
+    _expiracionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<LocaliaProvider>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9), // Blanco hueso tipo Apple
+      backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        // BOTÓN DE REGRESO PARA CAMBIAR DE ROL
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
           onPressed: () {
-            // Cambiamos el rol en el Provider y MainEntry hará el resto
             Provider.of<LocaliaProvider>(context, listen: false).setRole(false);
           },
         ),
@@ -37,22 +57,21 @@ class AdminScreen extends StatelessWidget {
             _buildSectionTitle("Impacto en Guanajuato"),
             const SizedBox(height: 15),
             
-            // TARJETA DE IMPACTO REFINADA CON GRADIENTE
             _buildPremiumImpactCard(state.totalSocialImpact, state.businesses.length),
 
             const SizedBox(height: 35),
-            _buildSectionTitle("Gestión de Locales"),
+            _buildSectionTitle("Gestión de Locales y Cupones"),
             const SizedBox(height: 15),
 
-            // LISTA DE NEGOCIOS ESTILO "CLEAN"
             state.businesses.isEmpty 
               ? _buildEmptyState()
               : ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: state.businesses.length,
-                  itemBuilder: (context, index) => _buildBusinessItem(context, state.businesses[index]),                ),
-            const SizedBox(height: 100), // Espacio para el FAB
+                  itemBuilder: (context, index) => _buildBusinessItem(context, state.businesses[index]),                
+                ),
+            const SizedBox(height: 100), 
           ],
         ),
       ),
@@ -70,7 +89,6 @@ class AdminScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        // GRADIENTE VERDE COPPEL
         gradient: const LinearGradient(
           colors: [Color(0xFF008F39), Color(0xFF00C853)],
           begin: Alignment.topLeft,
@@ -125,7 +143,7 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
-    Widget _buildBusinessItem(BuildContext context, dynamic biz) {
+  Widget _buildBusinessItem(BuildContext context, dynamic biz) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(8),
@@ -145,16 +163,18 @@ class AdminScreen extends StatelessWidget {
           icon: const Icon(Icons.more_horiz_rounded, color: Colors.grey),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           onSelected: (value) {
-            if (value == 'edit') {
-              // Lógica para editar (la veremos en el siguiente paso)
+            if (value == 'promo') {
+              _mostrarFormularioPromo(context, biz.id, biz.name);
+            } else if (value == 'edit') {
               _navigateToEdit(context, biz);
             } else if (value == 'delete') {
               _confirmDelete(context, biz);
             }
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text("Editar")),
-            const PopupMenuItem(value: 'delete', child: Text("Eliminar", style: TextStyle(color: Colors.red))),
+            const PopupMenuItem(value: 'promo', child: Row(children: [Icon(Icons.local_offer, size: 18, color: Colors.orange), SizedBox(width: 8), Text("Añadir Promo")])),
+            const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text("Editar")])),
+            const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text("Eliminar", style: TextStyle(color: Colors.red))])),
           ],
         ),
       ),
@@ -175,31 +195,112 @@ class AdminScreen extends StatelessWidget {
   Widget _buildEmptyState() {
     return const Center(child: Text("Sin negocios aún", style: TextStyle(color: Colors.grey)));
   }
-  void _confirmDelete(BuildContext context, dynamic biz) {
-  showDialog(
-    context: context,
-    builder: (c) => AlertDialog(
-      title: const Text("¿Eliminar negocio?"),
-      content: Text("Esta acción eliminará a '${biz.name}' de forma permanente."),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
-        TextButton(
-          onPressed: () {
-            Provider.of<LocaliaProvider>(context, listen: false).deleteBusiness(biz.id);
-            Navigator.pop(c);
-          }, 
-          child: const Text("Eliminar", style: TextStyle(color: Colors.red))
-        ),
-      ],
-    ),
-  );
-}
 
-void _navigateToEdit(BuildContext context, dynamic biz) {
-  // Aquí reutilizaremos el AddBusinessScreen pero pasándole los datos
-  Navigator.push(
-    context, 
-    MaterialPageRoute(builder: (c) => AddBusinessScreen(businessToEdit: biz))
-  );
-}
+  // --- FORMULARIO EMERGENTE PARA CREAR PROMOCIÓN ---
+  void _mostrarFormularioPromo(BuildContext context, String businessId, String businessName) {
+    // Limpiamos los controladores al abrir
+    _tituloController.clear();
+    _descuentoController.clear();
+    _descController.clear();
+    _expiracionController.text = "2026-12-31"; 
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Nueva Promoción", style: TextStyle(fontWeight: FontWeight.bold)),
+            Text("Para: $businessName", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Form(
+            key: _formPromoKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _tituloController,
+                  decoration: const InputDecoration(labelText: "Título (Ej: 2x1 en Cervezas)", prefixIcon: Icon(Icons.title)),
+                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _descuentoController,
+                  decoration: const InputDecoration(labelText: "Descuento (Ej: 50% o \$100)", prefixIcon: Icon(Icons.percent)),
+                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _descController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: "Condiciones", prefixIcon: Icon(Icons.description)),
+                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _expiracionController,
+                  decoration: const InputDecoration(labelText: "Expiración (YYYY-MM-DD)", prefixIcon: Icon(Icons.calendar_today)),
+                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("Cancelar", style: TextStyle(color: Colors.grey))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () {
+              if (_formPromoKey.currentState!.validate()) {
+                Provider.of<LocaliaProvider>(context, listen: false).crearPromocion(
+                  businessId,
+                  businessName,
+                  _tituloController.text,
+                  _descuentoController.text,
+                  _descController.text,
+                  _expiracionController.text
+                );
+                
+                Navigator.pop(context); // Cierra el modal
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Cupón creado para $businessName"), backgroundColor: Colors.orange)
+                );
+              }
+            },
+            child: const Text("Publicar Cupón", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, dynamic biz) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("¿Eliminar negocio?"),
+        content: Text("Esta acción eliminará a '${biz.name}' de forma permanente."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
+          TextButton(
+            onPressed: () {
+              Provider.of<LocaliaProvider>(context, listen: false).deleteBusiness(biz.id);
+              Navigator.pop(c);
+            }, 
+            child: const Text("Eliminar", style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToEdit(BuildContext context, dynamic biz) {
+    Navigator.push(context, MaterialPageRoute(builder: (c) => AddBusinessScreen(businessToEdit: biz)));
+  }
 }
