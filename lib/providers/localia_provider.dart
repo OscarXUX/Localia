@@ -214,9 +214,9 @@ class LocaliaProvider with ChangeNotifier {
 
   void auditarSeguridadSandbox() {
     debugPrint("🔒 AUDITORÍA DE SEGURIDAD NATIVA - SANDBOX LOCALIA");
-    debugPrint(" Saldo Disponible Wallet: ${_balance} MXN");
-    debugPrint(" Puntos Coppel Acumulados: ${_coppelPoints}");
-    debugPrint(" Impacto Social en Sedes Mundial: ${_totalSocialImpact} MXN");
+    debugPrint(" Saldo Disponible Wallet: $_balance MXN");
+    debugPrint(" Puntos Coppel Acumulados: $_coppelPoints");
+    debugPrint(" Impacto Social en Sedes Mundial: $_totalSocialImpact MXN");
     debugPrint(" Rol de Usuario actual: ${_isAdmin ? 'ADMINISTRADOR' : 'TURISTA'}");
     debugPrint(" Número de PyMEs Registradas en Disco: ${_allBusinesses.length}");
   }

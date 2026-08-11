@@ -22,7 +22,7 @@ const ProfileScreen({super.key});
               backgroundColor: Color(0xFF008F39),
               child: Icon(Icons.person, size: 50, color: Colors.white),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 15)
             const Text(
               "Oscar Pérez", 
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
