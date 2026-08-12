@@ -53,5 +53,3 @@ const PORT = 3002;
 app.listen(PORT, () => {
     console.log(`💬 Microservicio de Reseñas corriendo en http://localhost:${PORT}`);
 });
-indexadentro.txt
-Mostrando indexadentro.txt
