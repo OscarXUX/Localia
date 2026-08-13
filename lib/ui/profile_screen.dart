@@ -144,45 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-<<<<<<< HEAD
-      body: Padding(
-        padding: const EdgeInsets.all(25.0),
-        child: Column(
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundColor: Color(0xFF008F39),
-              child: Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-            const SizedBox(height: 15)
-            const Text(
-              "Oscar Pérez", 
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
-            ),
-            const Text("Explorador en Guanajuato", style: TextStyle(color: Colors.grey)),
-            
-            const SizedBox(height: 40),
-            
-            _buildProfileTile(Icons.favorite, "Mis Favoritos", "${state.favorites.length}"),
-            _buildProfileTile(Icons.account_balance_wallet, "Puntos Coppel", "${state.coppelPoints}"),
-            
-            const Spacer(),
-
-            // --- ESTE ES EL BOTÓN QUE FALTABA ---
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-=======
       body: state.isLoadingBackend
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF008F39)))
           : Padding(
               padding: const EdgeInsets.all(25.0),
->>>>>>> a1aececf89050fe87ae7f0447d4bdbc7a79c13e7
               child: Column(
                 children: [
                   CircleAvatar(

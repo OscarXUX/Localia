@@ -325,26 +325,16 @@ class LocaliaProvider with ChangeNotifier {
     notifyListeners();
   }
 
-<<<<<<< HEAD
   void auditarSeguridadSandbox() {
     debugPrint("🔒 AUDITORÍA DE SEGURIDAD NATIVA - SANDBOX LOCALIA");
-<<<<<<< HEAD
-    debugPrint(" Saldo Disponible Wallet: $_balance MXN");
-    debugPrint(" Puntos Coppel Acumulados: $_coppelPoints");
-    debugPrint(" Impacto Social en Sedes Mundial: $_totalSocialImpact MXN");
-=======
     debugPrint(" Saldo Disponible Wallet: \$$_balance MXN");
     debugPrint(" Puntos Coppel Acumulados: $_coppelPoints");
     debugPrint(" Impacto Social en Sedes Mundial: \$$_totalSocialImpact MXN");
->>>>>>> 8684fdd32fc702b6da2d93cc005f05e088edb06c
     debugPrint(" Rol de Usuario actual: ${_isAdmin ? 'ADMINISTRADOR' : 'TURISTA'}");
     debugPrint(" Número de PyMEs Registradas en Disco: ${_allBusinesses.length}");
   }
 
-=======
->>>>>>> a1aececf89050fe87ae7f0447d4bdbc7a79c13e7
   bool isFavorite(String id) => _favoriteIds.contains(id);
-
   void dismissSuccess() {
     _showSuccess = false;
     notifyListeners();

@@ -193,40 +193,6 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget _buildEmptyState() {
-<<<<<<< HEAD
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 50.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.storefront_outlined, size: 80, color: Colors.grey.shade300),
-            const SizedBox(height: 15),
-            const Text(
-              "Sin negocios registrados",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Toca el botón negro de abajo para añadir\nel primer local de Guanajuato al ecosistema.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-void _navigateToEdit(BuildContext context, dynamic biz) {
-  // Aquí reutilizaremos el AddBusinessScreen pero pasándole los datos
-  Navigator.push(
-    context, 
-    MaterialPageRoute(builder: (c) => AddBusinessScreen(businessToEdit: biz))
-  );
-  
-}
-=======
     return const Center(child: Text("Sin negocios aún", style: TextStyle(color: Colors.grey)));
   }
 
@@ -337,5 +303,4 @@ void _navigateToEdit(BuildContext context, dynamic biz) {
   void _navigateToEdit(BuildContext context, dynamic biz) {
     Navigator.push(context, MaterialPageRoute(builder: (c) => AddBusinessScreen(businessToEdit: biz)));
   }
->>>>>>> a1aececf89050fe87ae7f0447d4bdbc7a79c13e7
 }
