@@ -17,7 +17,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
   final PageController _pageController = PageController();
-  
+
   bool _isPaymentMode = false;
 
   @override
@@ -30,7 +30,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 LA SOLUCIÓN: Leer el Provider UNA SOLA VEZ de forma segura al inicio del build
+    // 🔥 LEER EL PROVIDER UNA SOLA VEZ AL INICIO
     final provider = Provider.of<LocaliaProvider>(context);
     final activeBusiness = provider.businesses.firstWhere(
       (b) => b.id == widget.business.id,
@@ -42,39 +42,56 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       body: CustomScrollView(
         slivers: [
           _buildSliverCarousel(activeBusiness),
-          
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMainHeader(activeBusiness),
+                  // Pasamos 'provider' directamente
+                  _buildMainHeader(activeBusiness, provider),
                   const SizedBox(height: 16),
-                  
+
                   _buildVerifiedBadge(),
                   const SizedBox(height: 25),
-                  
+
                   _buildSectionTitle("Sobre este anfitrión"),
                   const SizedBox(height: 8),
                   Text(
-                    activeBusiness.description.isEmpty 
-                        ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región." 
+                    activeBusiness.description.isEmpty
+                        ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región."
                         : activeBusiness.description,
-                    style: TextStyle(color: Colors.grey[800], fontSize: 15, height: 1.6),
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontSize: 15,
+                      height: 1.6,
+                    ),
                   ),
                   const SizedBox(height: 25),
 
-                  _buildInfoTile(Icons.access_time_filled_rounded, "Horario de atención", activeBusiness.schedule),
-                  _buildInfoTile(Icons.location_on_rounded, "Ubicación", activeBusiness.address),
-                  _buildInfoTile(Icons.phone_rounded, "Contacto directo", activeBusiness.phone),
-                  
+                  _buildInfoTile(
+                    Icons.access_time_filled_rounded,
+                    "Horario de atención",
+                    activeBusiness.schedule,
+                  ),
+                  _buildInfoTile(
+                    Icons.location_on_rounded,
+                    "Ubicación",
+                    activeBusiness.address,
+                  ),
+                  _buildInfoTile(
+                    Icons.phone_rounded,
+                    "Contacto directo",
+                    activeBusiness.phone,
+                  ),
+
                   const SizedBox(height: 35),
 
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 350),
-                    child: _isPaymentMode 
-                        ? _buildPaymentInputArea(activeBusiness) 
+                    child: _isPaymentMode
+                        ? _buildPaymentInputArea(activeBusiness)
                         : _buildInitialPayButton(),
                   ),
 
@@ -85,7 +102,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   const SizedBox(height: 30),
                   _buildSectionTitle("Opiniones de la comunidad"),
                   const SizedBox(height: 15),
-                  
+
                   if (activeBusiness.reviews.isEmpty)
                     Container(
                       width: double.infinity,
@@ -96,14 +113,19 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: const Text(
-                        "Aún no hay reseñas registradas. ¡Sé el primer turista en opinar!", 
+                        "Aún no hay reseñas registradas. ¡Sé el primer turista en opinar!",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     )
                   else
-                    ...activeBusiness.reviews.map((comment) => _buildReviewBubble(comment)).toList(),
-                  
+                    ...activeBusiness.reviews
+                        .map((comment) => _buildReviewBubble(comment))
+                        .toList(),
+
                   const SizedBox(height: 80),
                 ],
               ),
@@ -114,7 +136,10 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  Widget _buildMainHeader(Business activeBusiness) {
+  Widget _buildMainHeader(Business activeBusiness, LocaliaProvider provider) {
+    // Usamos el provider que recibimos por parámetro
+    final bool esFavorito = provider.isFavorite(activeBusiness.id);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -124,35 +149,82 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           children: [
             Expanded(
               child: Text(
-                activeBusiness.name, 
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1.0, color: Colors.black87),
+                activeBusiness.name,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.0,
+                  color: Colors.black87,
+                ),
               ),
             ),
             const SizedBox(width: 10),
+
+            IconButton(
+              icon: Icon(
+                esFavorito
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                color: esFavorito ? Colors.redAccent : Colors.grey.shade400,
+                size: 30,
+              ),
+              onPressed: () {
+                provider.toggleFavorite(activeBusiness.id);
+
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      esFavorito
+                          ? "Eliminado de favoritos"
+                          : "¡Guardado en tus favoritos!",
+                    ),
+                    backgroundColor: esFavorito
+                        ? Colors.grey[800]
+                        : Colors.redAccent,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Text(
+              activeBusiness.category.toUpperCase(),
+              style: const TextStyle(
+                color: LocaliaTheme.coppelGreen,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(width: 15),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.amber.shade50, 
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.amber.shade200),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                  const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
                   const SizedBox(width: 4),
                   Text(
-                    activeBusiness.rating.toStringAsFixed(1), 
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                    activeBusiness.rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
-            )
+            ),
           ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          activeBusiness.category.toUpperCase(), 
-          style: const TextStyle(color: LocaliaTheme.coppelGreen, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 13),
         ),
       ],
     );
@@ -169,11 +241,19 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.verified_rounded, color: LocaliaTheme.coppelGreen, size: 18),
+          Icon(
+            Icons.verified_rounded,
+            color: LocaliaTheme.coppelGreen,
+            size: 18,
+          ),
           SizedBox(width: 8),
           Text(
             "Comercio Autorizado Coppel Pay",
-            style: TextStyle(color: LocaliaTheme.coppelGreen, fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              color: LocaliaTheme.coppelGreen,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -196,7 +276,11 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               Container(
                 color: LocaliaTheme.coppelYellow.withOpacity(0.3),
                 child: const Center(
-                  child: Icon(Icons.storefront_rounded, size: 80, color: LocaliaTheme.coppelGreen),
+                  child: Icon(
+                    Icons.storefront_rounded,
+                    size: 80,
+                    color: LocaliaTheme.coppelGreen,
+                  ),
                 ),
               )
             else
@@ -206,8 +290,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 itemBuilder: (context, index) {
                   String imagePath = photos[index];
                   return Image(
-                    image: imagePath.startsWith('http') 
-                        ? NetworkImage(imagePath) 
+                    image: imagePath.startsWith('http')
+                        ? NetworkImage(imagePath)
                         : FileImage(File(imagePath)) as ImageProvider,
                     fit: BoxFit.cover,
                   );
@@ -231,7 +315,11 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         child: CircleAvatar(
           backgroundColor: Colors.white,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87, size: 18),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.black87,
+              size: 18,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -256,18 +344,29 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: LocaliaTheme.coppelGreen,
           padding: const EdgeInsets.symmetric(vertical: 20),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           elevation: 0,
         ),
         onPressed: () => setState(() => _isPaymentMode = true),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 22),
+            Icon(
+              Icons.account_balance_wallet_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
             SizedBox(width: 12),
             Text(
               "PAGAR CON COPPEL PAY",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.8),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: 0.8,
+              ),
             ),
           ],
         ),
@@ -296,11 +395,22 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Monto a transferir", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 14)),
+              const Text(
+                "Monto a transferir",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
+              ),
               IconButton(
-                icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 26),
+                icon: const Icon(
+                  Icons.cancel_rounded,
+                  color: Colors.redAccent,
+                  size: 26,
+                ),
                 onPressed: () => setState(() => _isPaymentMode = false),
-              )
+              ),
             ],
           ),
           TextField(
@@ -308,29 +418,37 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textAlign: TextAlign.center,
             autofocus: true,
-            style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900, color: LocaliaTheme.coppelGreen),
+            style: const TextStyle(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: LocaliaTheme.coppelGreen,
+            ),
             decoration: const InputDecoration(
-              hintText: "\$0.00", 
+              hintText: "\$0.00",
               hintStyle: TextStyle(color: Colors.grey),
               border: InputBorder.none,
             ),
           ),
           const SizedBox(height: 10),
-          
+
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [50, 100, 250].map((quickAmount) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: ChoiceChip(
-                label: Text("\$$quickAmount"),
-                selected: false,
-                onSelected: (_) {
-                  setState(() {
-                    _amountController.text = quickAmount.toString();
-                  });
-                },
-              ),
-            )).toList(),
+            children: [50, 100, 250]
+                .map(
+                  (quickAmount) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ChoiceChip(
+                      label: Text("\$$quickAmount"),
+                      selected: false,
+                      onSelected: (_) {
+                        setState(() {
+                          _amountController.text = quickAmount.toString();
+                        });
+                      },
+                    ),
+                  ),
+                )
+                .toList(),
           ),
 
           const SizedBox(height: 20),
@@ -340,24 +458,37 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: LocaliaTheme.coppelGreen,
                 padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               onPressed: () {
                 final double? amount = double.tryParse(_amountController.text);
                 if (amount != null && amount > 0) {
-                  Provider.of<LocaliaProvider>(context, listen: false)
-                      .makePurchase(amount, activeBusiness.name);
-                  
+                  Provider.of<LocaliaProvider>(
+                    context,
+                    listen: false,
+                  ).makePurchase(amount, activeBusiness.name);
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("¡Pago de \$$amount enviado a ${activeBusiness.name}!"),
+                      content: Text(
+                        "¡Pago de \$$amount enviado a ${activeBusiness.name}!",
+                      ),
                       backgroundColor: LocaliaTheme.coppelGreen,
                     ),
                   );
                   Navigator.pop(context);
                 }
               },
-              child: const Text("CONFIRMAR TRANSACCIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+              child: const Text(
+                "CONFIRMAR TRANSACCIÓN",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
             ),
           ),
         ],
@@ -383,17 +514,27 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             suffixIcon: Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: IconButton(
-                icon: const Icon(Icons.send_rounded, color: LocaliaTheme.coppelGreen),
+                icon: const Icon(
+                  Icons.send_rounded,
+                  color: LocaliaTheme.coppelGreen,
+                ),
                 onPressed: () {
                   if (_reviewController.text.trim().isNotEmpty) {
-                    Provider.of<LocaliaProvider>(context, listen: false)
-                        .addReviewToBusiness(activeBusiness.id, _reviewController.text.trim());
-                    
+                    Provider.of<LocaliaProvider>(
+                      context,
+                      listen: false,
+                    ).addReviewToBusiness(
+                      activeBusiness.id,
+                      _reviewController.text.trim(),
+                    );
+
                     _reviewController.clear();
                     FocusScope.of(context).unfocus();
-                    
+
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("¡Tu reseña se ha publicado con éxito!"))
+                      const SnackBar(
+                        content: Text("¡Tu reseña se ha publicado con éxito!"),
+                      ),
                     );
                   }
                 },
@@ -428,16 +569,30 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           CircleAvatar(
             radius: 18,
             backgroundColor: LocaliaTheme.coppelYellow.withOpacity(0.4),
-            child: const Icon(Icons.person_rounded, color: Colors.black87, size: 20),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Colors.black87,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Turista Localia", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text(
+                  "Turista Localia",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
                 const SizedBox(height: 4),
-                Text(text, style: TextStyle(color: Colors.grey[800], fontSize: 14, height: 1.3)),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.grey[800],
+                    fontSize: 14,
+                    height: 1.3,
+                  ),
+                ),
               ],
             ),
           ),
@@ -447,7 +602,15 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: Colors.black87));
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.5,
+        color: Colors.black87,
+      ),
+    );
   }
 
   Widget _buildInfoTile(IconData icon, String label, String value) {
@@ -458,7 +621,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white, 
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.grey.shade200),
             ),
@@ -469,12 +632,26 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(value.isEmpty ? "No especificado" : value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87)),
+                Text(
+                  value.isEmpty ? "No especificado" : value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
