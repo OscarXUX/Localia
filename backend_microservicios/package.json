@@ -1,0 +1,20 @@
+{
+  "name": "backend_microservicios",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start:negocios": "npm run dev --prefix microservicio_negocios",
+    "start:wallet": "npm run dev --prefix microservicio_wallet",
+    "start:resenas": "npm run dev --prefix microservicio_resenas",
+    "start:usuarios": "npm run dev --prefix microservicio_usuarios",
+    "start:promociones": "npm run dev --prefix microservicio_promociones",
+    "dev:all": "concurrently \"npm run start:negocios\" \"npm run start:wallet\" \"npm run start:resenas\" \"npm run start:usuarios\" \"npm run start:promociones\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "concurrently": "^10.0.4"
+  }
+}

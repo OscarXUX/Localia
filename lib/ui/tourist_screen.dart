@@ -8,6 +8,7 @@ import 'ai_chat_screen.dart';
 import 'profile_screen.dart';
 import 'business_detail_screen.dart';
 import 'package:localia/ui/widgets/success_overlay.dart';
+import './widgets/promociones_bottom_sheet.dart';
 
 class TouristPortal extends StatefulWidget {
   const TouristPortal({super.key});
@@ -23,7 +24,7 @@ class _TouristPortalState extends State<TouristPortal> {
     
     // Dispara la consulta al microservicio en segundo plano al cargar la vista
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<LocaliaProvider>(context, listen: false).cargarNegociosDesdeBackend();
+      Provider.of<LocaliaProvider>(context, listen: false).sincronizarEcosistema();
     });
   }
 
@@ -65,7 +66,16 @@ class _TouristPortalState extends State<TouristPortal> {
             const SuccessOverlay(),
         ],
       ),
-      floatingActionButton: _buildAppleFAB(context),
+      // AQUÍ ESTÁ LA MAGIA: Una columna que agrupa los dos botones flotantes
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _buildPromocionesFAB(context),
+          const SizedBox(height: 15),
+          _buildAppleFAB(context),
+        ],
+      ),
     );
   }
 
@@ -199,10 +209,27 @@ class _TouristPortalState extends State<TouristPortal> {
     );
   }
 
+  // NUEVO BOTÓN PARA DESPLEGAR EL BOTTOM SHEET DE PROMOCIONES
+  Widget _buildPromocionesFAB(BuildContext context) {
+    return FloatingActionButton.extended(
+      heroTag: 'btnPromociones', // El heroTag evita errores de animación si hay más de un botón flotante
+      backgroundColor: LocaliaTheme.coppelYellow,
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      onPressed: () {
+        PromocionesBottomSheet.mostrar(context);
+      },
+      label: const Text("CUPONES", 
+        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, color: Colors.black87)),
+      icon: const Icon(Icons.local_offer_rounded, color: Colors.black87),
+    );
+  }
+
   Widget _buildAppleFAB(BuildContext context) {
     return FloatingActionButton.extended(
+      heroTag: 'btnAsistente',
       backgroundColor: LocaliaTheme.coppelGreen,
-      elevation: 10,
+      elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const AIChatScreen())),
       label: const Text("AI ASSISTANT", 

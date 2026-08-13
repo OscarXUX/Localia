@@ -5,8 +5,6 @@ import '../models/business.dart';
 import '../providers/localia_provider.dart';
 import '../theme/app_theme.dart';
 
-/// [BusinessDetailScreen] es la pantalla donde el turista interactúa con el local.
-/// Permite ver fotos reales, leer reseñas, escribir comentarios y pagar con Coppel Pay.
 class BusinessDetailScreen extends StatefulWidget {
   final Business business;
   const BusinessDetailScreen({super.key, required this.business});
@@ -16,9 +14,6 @@ class BusinessDetailScreen extends StatefulWidget {
 }
 
 class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
-  // ---------------------------------------------------------
-  // 1. CONTROLADORES Y ESTADOS
-  // ---------------------------------------------------------
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
   final PageController _pageController = PageController();
@@ -35,12 +30,18 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 LA SOLUCIÓN: Leer el Provider UNA SOLA VEZ de forma segura al inicio del build
+    final provider = Provider.of<LocaliaProvider>(context);
+    final activeBusiness = provider.businesses.firstWhere(
+      (b) => b.id == widget.business.id,
+      orElse: () => widget.business,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: CustomScrollView(
         slivers: [
-          // CABECERA: Carrusel que soporta URLs de internet y fotos tomadas con la cámara
-          _buildSliverCarousel(),
+          _buildSliverCarousel(activeBusiness),
           
           SliverToBoxAdapter(
             child: Padding(
@@ -48,46 +49,44 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMainHeader(),
+                  _buildMainHeader(activeBusiness),
                   const SizedBox(height: 16),
                   
-                  // Insignia de respaldo Localia & Coppel Pay
                   _buildVerifiedBadge(),
                   const SizedBox(height: 25),
                   
                   _buildSectionTitle("Sobre este anfitrión"),
                   const SizedBox(height: 8),
                   Text(
-                    widget.business.description.isEmpty 
+                    activeBusiness.description.isEmpty 
                         ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región." 
-                        : widget.business.description,
+                        : activeBusiness.description,
                     style: TextStyle(color: Colors.grey[800], fontSize: 15, height: 1.6),
                   ),
                   const SizedBox(height: 25),
 
-                  _buildInfoTile(Icons.access_time_filled_rounded, "Horario de atención", widget.business.schedule),
-                  _buildInfoTile(Icons.location_on_rounded, "Ubicación", widget.business.address),
-                  _buildInfoTile(Icons.phone_rounded, "Contacto directo", widget.business.phone),
+                  _buildInfoTile(Icons.access_time_filled_rounded, "Horario de atención", activeBusiness.schedule),
+                  _buildInfoTile(Icons.location_on_rounded, "Ubicación", activeBusiness.address),
+                  _buildInfoTile(Icons.phone_rounded, "Contacto directo", activeBusiness.phone),
                   
                   const SizedBox(height: 35),
 
-                  // LÓGICA DE PAGO: Botón inicial de Coppel Pay o formulario de monto
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 350),
-                    child: _isPaymentMode ? _buildPaymentInputArea() : _buildInitialPayButton(),
+                    child: _isPaymentMode 
+                        ? _buildPaymentInputArea(activeBusiness) 
+                        : _buildInitialPayButton(),
                   ),
 
                   const SizedBox(height: 40),
 
-                  // SECCIÓN: ESCRIBIR COMENTARIO
-                  _buildAddReviewSection(),
+                  _buildAddReviewSection(activeBusiness),
 
                   const SizedBox(height: 30),
                   _buildSectionTitle("Opiniones de la comunidad"),
                   const SizedBox(height: 15),
                   
-                  // Lista de reseñas del Provider
-                  if (widget.business.reviews.isEmpty)
+                  if (activeBusiness.reviews.isEmpty)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -103,7 +102,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                       ),
                     )
                   else
-                    ...widget.business.reviews.map((comment) => _buildReviewBubble(comment)).toList(),
+                    ...activeBusiness.reviews.map((comment) => _buildReviewBubble(comment)).toList(),
                   
                   const SizedBox(height: 80),
                 ],
@@ -115,12 +114,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  // ---------------------------------------------------------
-  // 2. COMPONENTES DE INTERFAZ (UI)
-  // ---------------------------------------------------------
-
-  /// Encabezado con Nombre, Calificación y Categoría
-  Widget _buildMainHeader() {
+  Widget _buildMainHeader(Business activeBusiness) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -130,7 +124,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           children: [
             Expanded(
               child: Text(
-                widget.business.name, 
+                activeBusiness.name, 
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1.0, color: Colors.black87),
               ),
             ),
@@ -147,7 +141,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
                   const SizedBox(width: 4),
                   Text(
-                    widget.business.rating.toStringAsFixed(1), 
+                    activeBusiness.rating.toStringAsFixed(1), 
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
                   ),
                 ],
@@ -157,14 +151,13 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          widget.business.category.toUpperCase(), 
+          activeBusiness.category.toUpperCase(), 
           style: const TextStyle(color: LocaliaTheme.coppelGreen, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 13),
         ),
       ],
     );
   }
 
-  /// Insignia de verificación
   Widget _buildVerifiedBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -187,9 +180,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  /// Carrusel de imágenes que soporta fotos locales y de red
-  Widget _buildSliverCarousel() {
-    final List<String> photos = widget.business.photos;
+  Widget _buildSliverCarousel(Business activeBusiness) {
+    final List<String> photos = activeBusiness.photos;
 
     return SliverAppBar(
       expandedHeight: 300,
@@ -221,7 +213,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   );
                 },
               ),
-            // Sombras para mejorar visibilidad
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -248,7 +239,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  /// Botón inicial para activar el flujo de pago
   Widget _buildInitialPayButton() {
     return Container(
       key: const ValueKey(1),
@@ -285,8 +275,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  /// Área interactiva de ingreso de monto
-  Widget _buildPaymentInputArea() {
+  Widget _buildPaymentInputArea(Business activeBusiness) {
     return Container(
       key: const ValueKey(2),
       padding: const EdgeInsets.all(24),
@@ -328,7 +317,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           ),
           const SizedBox(height: 10),
           
-          // Chips de selecciones rápidas para facilitar pruebas
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [50, 100, 250].map((quickAmount) => Padding(
@@ -358,11 +346,11 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 final double? amount = double.tryParse(_amountController.text);
                 if (amount != null && amount > 0) {
                   Provider.of<LocaliaProvider>(context, listen: false)
-                      .makePurchase(amount, widget.business.name);
+                      .makePurchase(amount, activeBusiness.name);
                   
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("¡Pago de \$$amount enviado a ${widget.business.name}!"),
+                      content: Text("¡Pago de \$$amount enviado a ${activeBusiness.name}!"),
                       backgroundColor: LocaliaTheme.coppelGreen,
                     ),
                   );
@@ -377,8 +365,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  /// Caja de entrada para escribir una reseña
-  Widget _buildAddReviewSection() {
+  Widget _buildAddReviewSection(Business activeBusiness) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -400,7 +387,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 onPressed: () {
                   if (_reviewController.text.trim().isNotEmpty) {
                     Provider.of<LocaliaProvider>(context, listen: false)
-                        .addReviewToBusiness(widget.business.id, _reviewController.text.trim());
+                        .addReviewToBusiness(activeBusiness.id, _reviewController.text.trim());
                     
                     _reviewController.clear();
                     FocusScope.of(context).unfocus();
@@ -426,7 +413,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  /// Burbuja para cada comentario
   Widget _buildReviewBubble(String text) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
