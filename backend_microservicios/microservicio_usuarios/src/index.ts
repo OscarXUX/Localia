@@ -1,77 +1,100 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import sql from 'mssql';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Base de datos simulada en memoria con múltiples roles
-let usuariosDB: Record<string, any> = {
-    'premium': {
-        name: 'Oscar Manuel Granados Gonzalez',
-        email: 'oscar.g@localia.app',
-        accountType: 'Turista Premium',
-        role: 'admin', // Este rol le da acceso al panel de negocios
-        location: 'Abasolo, Gto',
-        membersSince: '2026-05-10',
-        preferences: ['Boxeo', 'Mecánica Automotriz', 'Gastronomía']
-    },
-    'basico': {
-        name: 'Turista Invitado',
-        email: 'invitado@localia.app',
-        accountType: 'Turista Básico',
-        role: 'user', // Rol restringido
-        location: 'Guanajuato',
-        membersSince: '2026-08-11',
-        preferences: ['Turismo General']
+// CONFIGURACIÓN DE TU SQL SERVER LOCAL
+const dbSettings = {
+    user: 'sa', // Cambia si usas otro usuario
+    password: 'localia123', // Pon aquí tu contraseña real
+    server: 'localhost', // Si usas SQLEXPRESS puede ser 'localhost\\SQLEXPRESS'
+    database: 'LocaliaDB',
+    options: {
+        encrypt: false, // Fundamental para bases de datos locales
+        trustServerCertificate: true
     }
 };
 
-let usuarioActual = usuariosDB['premium'];
+// ENDPOINT 1: Iniciar Sesión (Login Real)
+app.post('/api/v1/usuarios/login', async (req: Request, res: Response) => {
+    try {
+        const { email, password } = req.body;
+        const pool = await sql.connect(dbSettings);
+        
+        const result = await pool.request()
+            .input('email', sql.VarChar, email)
+            .input('password', sql.VarChar, password)
+            .query('SELECT * FROM Usuarios WHERE email = @email AND password = @password');
 
-// ENDPOINT 1: Consultar o cambiar de perfil
-app.get('/api/v1/usuarios/perfil', (req: Request, res: Response) => {
-    const tipo = req.query.tipo as string;
-    
-    // Si la app pide un tipo específico que existe, lo cambiamos en sesión
-    if (tipo && usuariosDB[tipo]) {
-        usuarioActual = usuariosDB[tipo];
+        if (result.recordset.length > 0) {
+            res.status(200).json({ status: 'success', data: result.recordset[0] });
+        } else {
+            res.status(401).json({ status: 'error', message: 'Credenciales inválidas' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ status: 'error', message: 'Fallo en la base de datos' });
     }
-
-    res.status(200).json({
-        status: 'success',
-        data: usuarioActual
-    });
 });
 
-// ENDPOINT 2: Crear una nueva cuenta desde el formulario de la app
-app.post('/api/v1/usuarios/registro', (req: Request, res: Response) => {
-    const nuevoUsuario = req.body;
-    
-    // Creamos un ID único temporal
-    const idUnico = 'user_' + Date.now();
-    
-    // Lo guardamos en nuestra base de datos simulada
-    usuariosDB[idUnico] = {
-        name: nuevoUsuario.name,
-        email: nuevoUsuario.email,
-        accountType: 'Nuevo Turista',
-        role: 'user', // Por seguridad, los nuevos nacen como usuarios normales
-        location: 'Guanajuato',
-        membersSince: new Date().toISOString().split('T')[0],
-        preferences: ['Explorador']
-    };
-    
-    // Iniciamos sesión automáticamente con la nueva cuenta
-    usuarioActual = usuariosDB[idUnico];
+// ENDPOINT 2: Obtener perfil (Para cambiar de cuenta desde la app)
+app.get('/api/v1/usuarios/perfil', async (req: Request, res: Response) => {
+    try {
+        const tipo = req.query.tipo as string; // 'premium' o 'basico'
+        const roleABuscar = tipo === 'premium' ? 'admin' : 'user';
 
-    res.status(201).json({
-        status: 'success',
-        data: usuarioActual
-    });
+        const pool = await sql.connect(dbSettings);
+        const result = await pool.request()
+            .input('role', sql.VarChar, roleABuscar)
+            .query('SELECT TOP 1 * FROM Usuarios WHERE role = @role');
+
+        if (result.recordset.length > 0) {
+            res.status(200).json({ status: 'success', data: result.recordset[0] });
+        } else {
+            res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ status: 'error', message: 'Fallo en la base de datos' });
+    }
+});
+
+// ENDPOINT 3: Registro de nueva cuenta
+app.post('/api/v1/usuarios/registro', async (req: Request, res: Response) => {
+    try {
+        const { name, email } = req.body;
+        const idUnico = 'user_' + Date.now();
+        const fechaActual = new Date().toISOString().split('T')[0];
+
+        const pool = await sql.connect(dbSettings);
+        await pool.request()
+            .input('id', sql.VarChar, idUnico)
+            .input('name', sql.VarChar, name)
+            .input('email', sql.VarChar, email)
+            .input('password', sql.VarChar, '12345') // Contraseña por defecto para pruebas
+            .input('accountType', sql.VarChar, 'Nuevo Turista')
+            .input('role', sql.VarChar, 'user')
+            .input('location', sql.VarChar, 'Guanajuato')
+            .input('membersSince', sql.VarChar, fechaActual)
+            .query(`INSERT INTO Usuarios (id, name, email, password, accountType, role, location, membersSince) 
+                    VALUES (@id, @name, @email, @password, @accountType, @role, @location, @membersSince)`);
+
+        // Consultamos el usuario recién creado para devolverlo a Flutter
+        const newUser = await pool.request()
+            .input('id', sql.VarChar, idUnico)
+            .query('SELECT * FROM Usuarios WHERE id = @id');
+
+        res.status(201).json({ status: 'success', data: newUser.recordset[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ status: 'error', message: 'Error al registrar en BD' });
+    }
 });
 
 const PORT = 3003;
 app.listen(PORT, () => {
-    console.log(`🚀 Microservicio de Usuarios corriendo en http://localhost:${PORT}`);
+    console.log(`🚀 Microservicio de Usuarios (CONECTADO A SQL SERVER) en http://localhost:${PORT}`);
 });

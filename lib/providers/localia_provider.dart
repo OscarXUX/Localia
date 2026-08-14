@@ -35,6 +35,8 @@ class LocaliaProvider with ChangeNotifier {
   bool _isLoaded = false;
   bool _showSuccess = false;
   bool _isLoadingBackend = false; 
+  bool _isAuthenticated = false;
+  bool get isAuthenticated => _isAuthenticated;
   
   final List<WorldCupEvent> _events = [
     WorldCupEvent(matchTitle: "🇲🇽 México vs 🇩🇪 Alemania - 18:00 hrs"),
@@ -194,6 +196,41 @@ class LocaliaProvider with ChangeNotifier {
       _isLoadingBackend = false;
       notifyListeners();
     }
+  }
+  // 🔥 NUEVA FUNCIÓN: Inicio de sesión con SQL Server
+  Future<bool> login(String email, String password) async {
+    _isLoadingBackend = true;
+    notifyListeners();
+
+    try {
+      final res = await http.post(
+        Uri.parse('http://$_ip:3003/api/v1/usuarios/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
+      );
+
+      if (res.statusCode == 200) {
+        perfilUsuario = json.decode(res.body)['data'];
+        _isAdmin = perfilUsuario['role'] == 'admin'; // Asigna rol según SQL
+        _isAuthenticated = true;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("❌ Error en login: $e");
+    } finally {
+      _isLoadingBackend = false;
+      notifyListeners();
+    }
+    return false;
+  }
+  
+  // Función para cerrar sesión limpiamente
+  void logout() {
+    _isAuthenticated = false;
+    _isAdmin = false;
+    perfilUsuario = {};
+    notifyListeners();
   }
 
   Future<void> _saveToDisk() async {
