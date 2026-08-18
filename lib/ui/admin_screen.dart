@@ -46,8 +46,13 @@ class _AdminScreenState extends State<AdminScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
           onPressed: () {
+            // 1. Apagamos el modo administrador
             Provider.of<LocaliaProvider>(context, listen: false).setRole(false);
-            Navigator.pop(context);
+
+            // 2. 🔥 Navegación Segura: Evita el pantallazo blanco protegiendo el historial
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
           },
         ),
         title: const Text("Dashboard Admin", 
