@@ -29,7 +29,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 LEER EL PROVIDER UNA SOLA VEZ AL INICIO
+    //LEER EL PROVIDER UNA SOLA VEZ AL INICIO
     final provider = Provider.of<LocaliaProvider>(context);
     final activeBusiness = provider.businesses.firstWhere(
       (b) => b.id == widget.business.id,
@@ -68,21 +68,27 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   ),
                   const SizedBox(height: 25),
 
-                  // 🔥 AQUÍ SE DIBUJAN TUS ÍCONOS DE CONTACTO Y UBICACIÓN
+                  // AQUÍ SE DIBUJAN TUS ÍCONOS DE CONTACTO Y UBICACIÓN
                   _buildInfoTile(
                     Icons.access_time_filled_rounded,
                     "Horario de atención",
-                    activeBusiness.schedule.isEmpty ? "9:00 AM - 6:00 PM" : activeBusiness.schedule,
+                    activeBusiness.schedule.isEmpty
+                        ? "9:00 AM - 6:00 PM"
+                        : activeBusiness.schedule,
                   ),
                   _buildInfoTile(
                     Icons.location_on_rounded,
                     "Ubicación",
-                    activeBusiness.address.isEmpty ? "Guanajuato, México" : activeBusiness.address,
+                    activeBusiness.address.isEmpty
+                        ? "Guanajuato, México"
+                        : activeBusiness.address,
                   ),
                   _buildInfoTile(
                     Icons.phone_rounded,
                     "Contacto directo",
-                    activeBusiness.phone.isEmpty ? "No disponible" : activeBusiness.phone,
+                    activeBusiness.phone.isEmpty
+                        ? "No disponible"
+                        : activeBusiness.phone,
                   ),
 
                   const SizedBox(height: 35),
@@ -287,11 +293,11 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 itemCount: photos.length,
                 itemBuilder: (context, index) {
                   String imagePath = photos[index];
-                  
-                  // 🔥 SOLUCIÓN AL ERROR WEB (_Namespace): 
+
+                  // SOLUCIÓN AL ERROR WEB (_Namespace):
                   // Usamos constructores seguros para la web en lugar de dart:io
                   Widget imageWidget;
-                  
+
                   if (imagePath.startsWith('http')) {
                     imageWidget = Image.network(
                       imagePath,
@@ -307,7 +313,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   } else {
                     imageWidget = _buildErrorImage();
                   }
-                  
+
                   return imageWidget;
                 },
               ),
@@ -349,7 +355,11 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.image_not_supported_rounded, size: 50, color: Colors.grey),
+            Icon(
+              Icons.image_not_supported_rounded,
+              size: 50,
+              color: Colors.grey,
+            ),
             SizedBox(height: 10),
             Text("Imagen no disponible", style: TextStyle(color: Colors.grey)),
           ],
