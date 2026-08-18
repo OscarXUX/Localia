@@ -29,7 +29,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    //LEER EL PROVIDER UNA SOLA VEZ AL INICIO
+    // LEER EL PROVIDER UNA SOLA VEZ AL INICIO (LÓGICA INTACTA)
     final provider = Provider.of<LocaliaProvider>(context);
     final activeBusiness = provider.businesses.firstWhere(
       (b) => b.id == widget.business.id,
@@ -37,7 +37,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8F9FA), // Fondo gris claro y limpio
       body: CustomScrollView(
         slivers: [
           _buildSliverCarousel(activeBusiness),
@@ -60,39 +60,20 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                     activeBusiness.description.isEmpty
                         ? "Este negocio local está listo para recibirte y ofrecerte la mejor atención de la región."
                         : activeBusiness.description,
-                    style: TextStyle(
-                      color: Colors.grey[800],
+                    style: const TextStyle(
+                      color: Colors.black54,
                       fontSize: 15,
                       height: 1.6,
                     ),
                   ),
                   const SizedBox(height: 25),
 
-                  // AQUÍ SE DIBUJAN TUS ÍCONOS DE CONTACTO Y UBICACIÓN
-                  _buildInfoTile(
-                    Icons.access_time_filled_rounded,
-                    "Horario de atención",
-                    activeBusiness.schedule.isEmpty
-                        ? "9:00 AM - 6:00 PM"
-                        : activeBusiness.schedule,
-                  ),
-                  _buildInfoTile(
-                    Icons.location_on_rounded,
-                    "Ubicación",
-                    activeBusiness.address.isEmpty
-                        ? "Guanajuato, México"
-                        : activeBusiness.address,
-                  ),
-                  _buildInfoTile(
-                    Icons.phone_rounded,
-                    "Contacto directo",
-                    activeBusiness.phone.isEmpty
-                        ? "No disponible"
-                        : activeBusiness.phone,
-                  ),
+                  // 🔥 NUEVO: Tarjeta de información agrupada (Estilo Perfil)
+                  _buildInfoCard(activeBusiness),
 
                   const SizedBox(height: 35),
 
+                  // LÓGICA INTACTA: Animación del panel de pago
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 350),
                     child: _isPaymentMode
@@ -108,6 +89,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   _buildSectionTitle("Opiniones de la comunidad"),
                   const SizedBox(height: 15),
 
+                  // LÓGICA INTACTA: Muestra reseñas o mensaje de vacío
                   if (activeBusiness.reviews.isEmpty)
                     Container(
                       width: double.infinity,
@@ -115,7 +97,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
                       ),
                       child: const Text(
                         "Aún no hay reseñas registradas. ¡Sé el primer turista en opinar!",
@@ -164,6 +146,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             ),
             const SizedBox(width: 10),
 
+            // LÓGICA INTACTA: Botón de favoritos y SnackBar
             IconButton(
               icon: Icon(
                 esFavorito
@@ -206,12 +189,13 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               ),
             ),
             const SizedBox(width: 15),
+            // 🔥 NUEVO: Diseño del Rating con borde estilizado
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade200),
+                color: Colors.amber.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber.withOpacity(0.5), width: 1.5),
               ),
               child: Row(
                 children: [
@@ -240,7 +224,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       decoration: BoxDecoration(
         color: LocaliaTheme.coppelGreen.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: LocaliaTheme.coppelGreen.withOpacity(0.3)),
+        border: Border.all(color: LocaliaTheme.coppelGreen.withOpacity(0.3), width: 1.5),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
@@ -264,13 +248,14 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
+  // LÓGICA INTACTA: Carrusel de imágenes web-safe
   Widget _buildSliverCarousel(Business activeBusiness) {
     final List<String> photos = activeBusiness.photos;
 
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
-      backgroundColor: LocaliaTheme.coppelYellow,
+      backgroundColor: Colors.white,
       elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
@@ -278,12 +263,12 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           children: [
             if (photos.isEmpty)
               Container(
-                color: LocaliaTheme.coppelYellow.withOpacity(0.3),
+                color: Colors.grey.shade100,
                 child: const Center(
                   child: Icon(
                     Icons.storefront_rounded,
                     size: 80,
-                    color: LocaliaTheme.coppelGreen,
+                    color: Colors.black12,
                   ),
                 ),
               )
@@ -294,10 +279,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 itemBuilder: (context, index) {
                   String imagePath = photos[index];
 
-                  // SOLUCIÓN AL ERROR WEB (_Namespace):
-                  // Usamos constructores seguros para la web en lugar de dart:io
                   Widget imageWidget;
-
                   if (imagePath.startsWith('http')) {
                     imageWidget = Image.network(
                       imagePath,
@@ -332,8 +314,14 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       ),
       leading: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: CircleAvatar(
-          backgroundColor: Colors.white,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)
+            ],
+          ),
           child: IconButton(
             icon: const Icon(
               Icons.arrow_back_ios_new_rounded,
@@ -347,7 +335,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
-  // Widget de apoyo por si la imagen falla al cargar
   Widget _buildErrorImage() {
     return Container(
       color: Colors.grey.shade200,
@@ -368,25 +355,65 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
+  // 🔥 NUEVO: Tarjeta agrupada para reemplazar los _buildInfoTile sueltos
+  Widget _buildInfoCard(Business activeBusiness) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(
+            Icons.access_time_filled_rounded,
+            activeBusiness.schedule.isEmpty ? "9:00 AM - 6:00 PM" : activeBusiness.schedule,
+          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.black12)),
+          _buildInfoRow(
+            Icons.location_on_rounded,
+            activeBusiness.address.isEmpty ? "Guanajuato, México" : activeBusiness.address,
+          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.black12)),
+          _buildInfoRow(
+            Icons.phone_rounded,
+            activeBusiness.phone.isEmpty ? "No disponible" : activeBusiness.phone,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.black54, size: 22),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 🔥 ACTUALIZADO: Botón con estilo "Administrar Perfil"
   Widget _buildInitialPayButton() {
     return Container(
       key: const ValueKey(1),
       width: double.infinity,
-      decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: LocaliaTheme.coppelGreen.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: LocaliaTheme.coppelGreen,
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          backgroundColor: Colors.black87,
+          padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
         ),
@@ -404,8 +431,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               "PAGAR CON COPPEL PAY",
               style: TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
                 letterSpacing: 0.8,
               ),
             ),
@@ -415,19 +442,20 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
+  // 🔥 ACTUALIZADO: Panel de pago con bordes del nuevo diseño
   Widget _buildPaymentInputArea(Business activeBusiness) {
     return Container(
       key: const ValueKey(2),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: LocaliaTheme.coppelGreen.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -440,15 +468,15 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 "Monto a transferir",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: Colors.black54,
                   fontSize: 14,
                 ),
               ),
               IconButton(
                 icon: const Icon(
                   Icons.cancel_rounded,
-                  color: Colors.redAccent,
-                  size: 26,
+                  color: Colors.black26,
+                  size: 24,
                 ),
                 onPressed: () => setState(() => _isPaymentMode = false),
               ),
@@ -462,16 +490,17 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             style: const TextStyle(
               fontSize: 44,
               fontWeight: FontWeight.w900,
-              color: LocaliaTheme.coppelGreen,
+              color: LocaliaTheme.coppelGreen, // Mantenemos el verde para el dinero
             ),
             decoration: const InputDecoration(
               hintText: "\$0.00",
-              hintStyle: TextStyle(color: Colors.grey),
+              hintStyle: TextStyle(color: Colors.black12),
               border: InputBorder.none,
             ),
           ),
           const SizedBox(height: 10),
 
+          // LÓGICA INTACTA: Chips de montos rápidos
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [50, 100, 250]
@@ -479,8 +508,13 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   (quickAmount) => Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     child: ChoiceChip(
-                      label: Text("\$$quickAmount"),
+                      label: Text("\$$quickAmount", style: const TextStyle(fontWeight: FontWeight.bold)),
                       selected: false,
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: Colors.black.withOpacity(0.08), width: 1.5),
+                      ),
                       onSelected: (_) {
                         setState(() {
                           _amountController.text = quickAmount.toString();
@@ -493,15 +527,18 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           ),
 
           const SizedBox(height: 20),
+          
+          // LÓGICA INTACTA: Procesamiento de pago
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: LocaliaTheme.coppelGreen,
+                backgroundColor: LocaliaTheme.coppelGreen, // Verde para confirmar transacción
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
+                elevation: 0,
               ),
               onPressed: () {
                 final double? amount = double.tryParse(_amountController.text);
@@ -527,7 +564,8 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
@@ -537,6 +575,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
+  // 🔥 ACTUALIZADO: Caja de texto rediseñada
   Widget _buildAddReviewSection(Business activeBusiness) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -548,7 +587,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
           maxLines: 2,
           decoration: InputDecoration(
             hintText: "¿Qué tal te atendieron en este local?",
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+            hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.all(16),
@@ -557,8 +596,9 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               child: IconButton(
                 icon: const Icon(
                   Icons.send_rounded,
-                  color: LocaliaTheme.coppelGreen,
+                  color: Colors.black87,
                 ),
+                // LÓGICA INTACTA: Publicar reseña
                 onPressed: () {
                   if (_reviewController.text.trim().isNotEmpty) {
                     Provider.of<LocaliaProvider>(
@@ -575,6 +615,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("¡Tu reseña se ha publicado con éxito!"),
+                        backgroundColor: Colors.black87,
                       ),
                     );
                   }
@@ -583,11 +624,15 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.08), width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade200),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.08), width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.black87, width: 1.5),
             ),
           ),
         ),
@@ -595,6 +640,7 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
     );
   }
 
+  // 🔥 ACTUALIZADO: Burbujas de reseña unificadas al diseño
   Widget _buildReviewBubble(String text) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -602,17 +648,20 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: LocaliaTheme.coppelYellow.withOpacity(0.4),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF0F0F5),
+              shape: BoxShape.circle,
+            ),
             child: const Icon(
               Icons.person_rounded,
-              color: Colors.black87,
+              color: Colors.black54,
               size: 20,
             ),
           ),
@@ -623,15 +672,15 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               children: [
                 const Text(
                   "Turista Localia",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   text,
-                  style: TextStyle(
-                    color: Colors.grey[800],
+                  style: const TextStyle(
+                    color: Colors.black54,
                     fontSize: 14,
-                    height: 1.3,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -650,50 +699,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
         fontWeight: FontWeight.w900,
         letterSpacing: -0.5,
         color: Colors.black87,
-      ),
-    );
-  }
-
-  Widget _buildInfoTile(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Icon(icon, color: LocaliaTheme.coppelGreen, size: 22),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value.isEmpty ? "No especificado" : value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
