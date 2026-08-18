@@ -6,7 +6,6 @@ import '../theme/app_theme.dart';
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
 
-  // --- MENÚ DESLIZABLE PARA SIMULAR LA RECARGA ---
   void _mostrarModalRecarga(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -17,9 +16,80 @@ class WalletScreen extends StatelessWidget {
     );
   }
 
+  // 🔥 NUEVO MODAL: Para transferencias a otros usuarios (P2P)
+  void _mostrarModalTransferencia(BuildContext context) {
+    final TextEditingController destinatarioCtrl = TextEditingController();
+    final TextEditingController montoCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, 
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 25, right: 25, top: 25,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Transferir Dinero", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: destinatarioCtrl,
+              decoration: InputDecoration(
+                labelText: "Destinatario (Nombre o @Usuario)",
+                prefixIcon: const Icon(Icons.person),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: montoCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: "Monto a transferir",
+                prefixIcon: const Icon(Icons.attach_money_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                onPressed: () {
+                  final double? amount = double.tryParse(montoCtrl.text);
+                  final String destinatario = destinatarioCtrl.text.isEmpty ? "Amigo" : destinatarioCtrl.text;
+
+                  if (amount != null && amount > 0) {
+                    // Reutilizamos la función de pago para enviar el dinero
+                    Provider.of<LocaliaProvider>(context, listen: false).makePurchase(amount, destinatario);
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Transferencia de \$${amount.toStringAsFixed(2)} enviada a $destinatario"))
+                    );
+                  }
+                },
+                child: const Text("ENVIAR TRANSFERENCIA", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Escuchamos los datos reales del microservicio 3001
     final state = Provider.of<LocaliaProvider>(context);
 
     return Scaffold(
@@ -80,7 +150,7 @@ class WalletScreen extends StatelessWidget {
             ),
             const SizedBox(height: 25),
             
-            // 2. BOTONES DE ACCIÓN (CONECTADOS AL BACKEND)
+            // 2. BOTONES DE ACCIÓN 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -88,7 +158,7 @@ class WalletScreen extends StatelessWidget {
                   icono: Icons.add_card_rounded, 
                   texto: "Recargar", 
                   color: LocaliaTheme.coppelYellow, 
-                  onTap: () => _mostrarModalRecarga(context) // Dispara el modal
+                  onTap: () => _mostrarModalRecarga(context) 
                 ),
                 _BotonAccion(
                   icono: Icons.qr_code_scanner_rounded, 
@@ -102,9 +172,7 @@ class WalletScreen extends StatelessWidget {
                   icono: Icons.swap_horiz_rounded, 
                   texto: "Transferir", 
                   color: Colors.white, 
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Función de transferencia P2P en desarrollo...")));
-                  }
+                  onTap: () => _mostrarModalTransferencia(context) // 🔥 AHORA ABRE EL MODAL
                 ),
               ],
             ),
@@ -155,8 +223,6 @@ class WalletScreen extends StatelessWidget {
     );
   }
 }
-
-// --- WIDGETS AUXILIARES PARA MANTENER EL CÓDIGO LIMPIO ---
 
 class _BotonAccion extends StatelessWidget {
   final IconData icono;
@@ -226,7 +292,6 @@ class _OpcionesRecarga extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
               ),
               onPressed: () {
-                // Llama al microservicio con un monto grande
                 Provider.of<LocaliaProvider>(context, listen: false).recargarCartera(5000);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Carga fuerte de \$5,000 recibida!")));
@@ -248,7 +313,6 @@ class _BotonMontoRapido extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        // 🔥 ESTA ES LA CONEXIÓN DIRECTA CON NODE.JS (Puerto 3001)
         Provider.of<LocaliaProvider>(context, listen: false).recargarCartera(monto);
         Navigator.pop(context); 
         ScaffoldMessenger.of(context).showSnackBar(

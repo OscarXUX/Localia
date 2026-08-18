@@ -6,27 +6,27 @@ import 'package:flutter/material.dart';
 class Business {
 
   // 1. ATRIBUTOS (Propiedades del Negocio)
-  
-  final String id;          // Identificador único (usamos un timestamp o UUID)
-  final String name;        // Nombre comercial del local
-  final String category;    // Giro del negocio (Restaurante, Artesanías, etc.)
-  final double rating;      // Calificación promedio (0.0 a 5.0)
-  final IconData icon;      // Icono visual que aparecerá en el mapa
-  final double mapX;        // Posición relativa en el eje X del mapa personalizado
-  final double mapY;        // Posición relativa en el eje Y del mapa personalizado
-  final int priceLevel;     // Nivel de costo ($, $$, $$$)
+  final String? ownerId; // Le ponemos '?' porque los negocios viejos podrían no tenerlo
+  final String id;          
+  final String name;        
+  final String category;    
+  final double rating;      
+  final IconData icon;      
+  final double mapX;        
+  final double mapY;        
+  final int priceLevel;     
   
   // Información detallada para el perfil
-  final String description;    // Historia o descripción de productos
-  final String address;        // Dirección física para el turista
-  final String phone;          // Número de contacto
-  final String representative; // Nombre del dueño o encargado
-  final String rfc;            // Registro Federal de Contribuyentes (Dato legal para Coppel)
-  final String schedule;       // Horarios de apertura y cierre
+  final String description;    
+  final String address;        
+  final String phone;          
+  final String representative; 
+  final String rfc;            
+  final String schedule;       
   
   // Listas de datos dinámicos
-  final List<String> photos;   // Rutas (paths) o URLs de las imágenes para el carrusel
-  final List<String> reviews;  // Lista de textos con los comentarios de los clientes
+  final List<String> photos;   
+  final List<String> reviews;  
 
   // 2. CONSTRUCTOR
   Business({
@@ -46,20 +46,18 @@ class Business {
     this.schedule = "09:00 - 21:00",
     this.photos = const [],
     this.reviews = const [],
+    this.ownerId,
   });
 
   // ---------------------------------------------------------
   // 3. SERIALIZACIÓN (De Objeto a Texto JSON)
   // ---------------------------------------------------------
-  /// El método [toJson] convierte este objeto en un Mapa (Map).
-  /// Esto es necesario porque SharedPreferences solo entiende texto plano,
-  /// por lo que transformamos los datos a un formato que se pueda guardar.
   Map<String, dynamic> toJson() => {
     'id': id, 
+    'ownerId': ownerId,
     'name': name, 
     'category': category, 
     'rating': rating,
-    // El IconData no se puede guardar directamente, guardamos su 'codePoint' numérico
     'iconCode': icon.codePoint, 
     'mapX': mapX, 
     'mapY': mapY,
@@ -77,26 +75,75 @@ class Business {
   // ---------------------------------------------------------
   // 4. DESERIALIZACIÓN (De Texto JSON a Objeto)
   // ---------------------------------------------------------
-  /// El [factory constructor] toma un Mapa (normalmente recuperado de disco)
-  /// y reconstruye el objeto [Business] para que la app pueda usarlo de nuevo.
   factory Business.fromJson(Map<String, dynamic> json) {
-  // Extraemos la ubicación de forma segura por si viene anidada
-  final location = json['location'] as Map<String, dynamic>?;
-  
-  return Business(
-    id: json['id']?.toString() ?? '',
-    name: json['name'] ?? '',
-    category: json['category'] ?? '',
-    description: json['description'] ?? '',
-    rating: (json['rating'] as num?)?.toDouble() ?? 4.0,
+    // 1. Extraemos la ubicación de forma segura por si viene anidada
+    final location = json['location'] as Map<String, dynamic>?;
     
-    // Asignamos un icono por defecto según la categoría que mande Node.js
-    icon: json['category'] == 'Gastronomía' ? Icons.restaurant : Icons.storefront,
-    
-    // Mapeo temporal: Como el mapa actual es una imagen fija, puedes calcular 
-    // una aproximación en lo que integran la telemetría real del mapa interactivo
-    mapX: location != null ? 0.4 : 0.5, 
-    mapY: location != null ? 0.4 : 0.5,
-  );
-}
+    // 2. Compatibilidad de Imágenes: Node.js manda 'image', Flutter usa 'photos'
+    List<String> parsedPhotos = [];
+    if (json['image'] != null && json['image'].toString().isNotEmpty) {
+      parsedPhotos.add(json['image'].toString());
+    } else if (json['photos'] != null) {
+      parsedPhotos = List<String>.from(json['photos']);
+    }
+
+    // 3. Extracción segura de listas
+    List<String> parsedReviews = [];
+    if (json['reviews'] != null) {
+      parsedReviews = List<String>.from(json['reviews']);
+    }
+
+    return Business(
+      // Datos principales
+      id: json['id']?.toString() ?? '',
+      ownerId: json['ownerId']?.toString(),
+      name: json['name'] ?? 'Negocio sin nombre',
+      category: json['category'] ?? 'General',
+      rating: (json['rating'] as num?)?.toDouble() ?? 5.0,
+      
+      // 🔥 CRÍTICO: Aquí leemos los datos que antes se ignoraban
+      description: json['description'] ?? '',
+      phone: json['phone'] ?? '',
+      address: json['address'] ?? '',
+      representative: json['representative'] ?? '',
+      rfc: json['rfc'] ?? '',
+      schedule: json['schedule'] ?? '09:00 - 18:00',
+      priceLevel: json['priceLevel'] ?? 1,
+      
+      // Asignamos las listas procesadas
+      photos: parsedPhotos,
+      reviews: parsedReviews,
+      
+      // Icono dinámico según el giro del negocio
+      icon: _getIconForCategory(json['category']?.toString() ?? ''),
+      
+      // Coordenadas para el mapa (Posición estática temporal)
+      mapX: location != null ? 0.4 : 0.5, 
+      mapY: location != null ? 0.4 : 0.5,
+    );
+  }
+
+  // ---------------------------------------------------------
+  // 5. HELPERS (Funciones de apoyo)
+  // ---------------------------------------------------------
+  /// Asigna un ícono visualmente acorde a la categoría que devuelve la base de datos
+  static IconData _getIconForCategory(String category) {
+    switch (category.toLowerCase()) {
+      case 'gastronomía':
+      case 'restaurante':
+      case 'comida':
+        return Icons.restaurant_rounded;
+      case 'artesanía':
+      case 'artesanías':
+        return Icons.color_lens_rounded;
+      case 'ropa':
+      case 'boutique':
+        return Icons.checkroom_rounded;
+      case 'hotel':
+      case 'hospedaje':
+        return Icons.hotel_rounded;
+      default:
+        return Icons.storefront_rounded;
+    }
+  }
 }

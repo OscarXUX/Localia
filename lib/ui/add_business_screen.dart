@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/business.dart';
 import '../providers/localia_provider.dart';
-import '../theme/app_theme.dart';
-import 'dart:io'; 
-import 'package:image_picker/image_picker.dart';
 
 /// [AddBusinessScreen] permite tanto la creación de un nuevo negocio como la edición 
-/// de uno existente. Si se pasa un [businessToEdit], el formulario se auto-completa.
+/// de uno existente. Incluye validación de roles, corrección de categorías y subida de imágenes.
 class AddBusinessScreen extends StatefulWidget {
   final Business? businessToEdit;
 
@@ -22,10 +20,12 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
   final ImagePicker _picker = ImagePicker();
 
   // ---------------------------------------------------------
-  // 1. LÓGICA DE CAPTURA DE IMAGEN
+  // 1. ESTADOS DE IMAGEN Y CARGA
   // ---------------------------------------------------------
+  XFile? _imagenSeleccionada;
+  bool _isSaving = false;
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _seleccionarImagen(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
@@ -35,8 +35,7 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
 
       if (pickedFile != null) {
         setState(() {
-          // Guardamos la ruta del archivo real en la lista
-          _photoList.add(pickedFile.path);
+          _imagenSeleccionada = pickedFile;
         });
       }
     } catch (e) {
@@ -47,7 +46,6 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
   // ---------------------------------------------------------
   // 2. CONTROLADORES Y ESTADO LOCAL
   // ---------------------------------------------------------
-  
   late TextEditingController _nameController, _descController, _addressController,
       _phoneController, _repController, _rfcController, _scheduleController, _photoUrlController;
 
@@ -74,7 +72,13 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
     _photoUrlController = TextEditingController();
 
     if (widget.businessToEdit != null) {
-      _category = widget.businessToEdit!.category;
+      // 🔥 SOLUCIÓN AL CRASH DEL DROPDOWN: Traductor de categorías viejas
+      String fetchedCategory = widget.businessToEdit!.category;
+      if (fetchedCategory == 'Artesanía') fetchedCategory = 'Artesanías';
+      
+      final validCategories = ['Restaurante', 'Artesanías', 'Hospedaje', 'Servicios', 'Tienda'];
+      _category = validCategories.contains(fetchedCategory) ? fetchedCategory : 'Restaurante';
+
       _selectedIcon = widget.businessToEdit!.icon;
       _photoList = List.from(widget.businessToEdit!.photos);
     }
@@ -95,6 +99,45 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<LocaliaProvider>(context);
+    
+    // 🔥 SOLUCIÓN A LA SEGURIDAD: Forzar que el ID sea Texto para evitar errores
+    final String? userIdStr = provider.perfilUsuarioData['id']?.toString(); 
+    final isAdmin = provider.isAdmin;
+
+    if (widget.businessToEdit != null) {
+      final String? ownerIdStr = widget.businessToEdit!.ownerId?.toString();
+      
+      // Comparamos textos con textos
+      final bool isOwner = (ownerIdStr == userIdStr) && (userIdStr != null);
+      
+      if (!isOwner && !isAdmin) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(backgroundColor: Colors.white, elevation: 0),
+          body: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(30.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.gpp_bad_rounded, size: 80, color: Colors.redAccent),
+                  SizedBox(height: 20),
+                  Text("Acceso Denegado", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 10),
+                  Text(
+                    "Solo el usuario que registró este negocio o un Administrador del sistema pueden realizar modificaciones.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -126,7 +169,7 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
               _buildCategoryDropdown(),
               const SizedBox(height: 20),
               
-              _buildSectionHeader("Fotos del Local", Icons.camera_alt_rounded),
+              _buildSectionHeader("Foto Principal del Local", Icons.camera_alt_rounded),
               _buildPhotoUploader(), 
               const SizedBox(height: 20),
               
@@ -136,7 +179,7 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
               _buildTextField(_addressController, "Dirección exacta", Icons.location_on_rounded),
               
               const SizedBox(height: 40),
-              _buildSaveButton(context),
+              _buildSaveButton(context, provider),
               const SizedBox(height: 50),
             ],
           ),
@@ -148,13 +191,12 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
   // ---------------------------------------------------------
   // 3. WIDGETS DE COMPONENTES
   // ---------------------------------------------------------
-
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15, top: 10),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: LocaliaTheme.coppelGreen),
+           Icon(icon, size: 20, color: const Color(0xFF008F39)),
           const SizedBox(width: 10),
           Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         ],
@@ -176,7 +218,7 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
               margin: const EdgeInsets.only(right: 15),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isSelected ? LocaliaTheme.coppelGreen : Colors.grey[100],
+                color: isSelected ? const Color(0xFF008F39) : Colors.grey[100],
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(_availableIcons[index], color: isSelected ? Colors.white : Colors.black54),
@@ -223,20 +265,19 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
 
   Widget _buildPhotoUploader() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Botón de Cámara Real
             ElevatedButton.icon(
-              onPressed: () => _pickImage(ImageSource.camera),
+              onPressed: () => _seleccionarImagen(ImageSource.camera),
               icon: const Icon(Icons.camera_alt),
               label: const Text("Cámara"),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
             ),
-            // Botón de Galería Real
             ElevatedButton.icon(
-              onPressed: () => _pickImage(ImageSource.gallery),
+              onPressed: () => _seleccionarImagen(ImageSource.gallery),
               icon: const Icon(Icons.photo_library),
               label: const Text("Galería"),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
@@ -244,82 +285,79 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
           ],
         ),
         const SizedBox(height: 15),
-        Row(
-          children: [
-            Expanded(child: _buildTextField(_photoUrlController, "O pega URL", Icons.link, required: false)),
-            IconButton(
-              icon: const Icon(Icons.add_circle, color: LocaliaTheme.coppelGreen),
-              onPressed: () {
-                if (_photoUrlController.text.isNotEmpty) {
-                  setState(() {
-                    _photoList.add(_photoUrlController.text);
-                    _photoUrlController.clear();
-                  });
-                }
-              },
-            )
-          ],
-        ),
-        const SizedBox(height: 15),
-        if (_photoList.isNotEmpty)
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _photoList.length,
-              itemBuilder: (context, index) {
-                final String path = _photoList[index];
-                return Stack(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      width: 100,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        image: DecorationImage(
-                          // Detecta si es URL de internet o archivo local
-                          image: path.startsWith('http') 
-                              ? NetworkImage(path) 
-                              : FileImage(File(path)) as ImageProvider,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 5, top: 5,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _photoList.removeAt(index)),
-                        child: const CircleAvatar(
-                          radius: 12, 
-                          backgroundColor: Colors.red, 
-                          child: Icon(Icons.close, size: 14, color: Colors.white)
-                        ),
-                      ),
-                    )
-                  ],
-                );
-              },
+        
+        if (_imagenSeleccionada == null && _photoList.isNotEmpty)
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              image: DecorationImage(
+                image: NetworkImage(_photoList.first),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+        if (_imagenSeleccionada != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.green),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.green),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Archivo listo: ${_imagenSeleccionada!.name}",
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => setState(() => _imagenSeleccionada = null),
+                )
+              ],
             ),
           ),
       ],
     );
   }
 
-  Widget _buildSaveButton(BuildContext context) {
+  Widget _buildSaveButton(BuildContext context, LocaliaProvider provider) {
     return SizedBox(
       width: double.infinity,
+      height: 55,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: LocaliaTheme.coppelGreen, 
-          padding: const EdgeInsets.symmetric(vertical: 18), 
+          backgroundColor: const Color(0xFF008F39), 
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
         ),
-        onPressed: () {
+        onPressed: _isSaving ? null : () async {
           if (_formKey.currentState!.validate()) {
-            final provider = Provider.of<LocaliaProvider>(context, listen: false);
+            setState(() => _isSaving = true); 
+
+            List<String> finalPhotos = List.from(_photoList);
             
+            if (_imagenSeleccionada != null) {
+              final String? uploadedUrl = await provider.subirImagenNegocio(_imagenSeleccionada);
+              if (uploadedUrl != null) {
+                finalPhotos = [uploadedUrl]; 
+              } else {
+                finalPhotos = ["https://placehold.co/600x400/008F39/FFFFFF/png?text=Nuevo+Local"];
+              }
+            } else if (finalPhotos.isEmpty) {
+              finalPhotos = ["https://placehold.co/600x400/008F39/FFFFFF/png?text=Nuevo+Local"];
+            }
+
             final biz = Business(
-              id: widget.businessToEdit?.id ?? DateTime.now().toString(),
+              id: widget.businessToEdit?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              ownerId: widget.businessToEdit?.ownerId?.toString() ?? provider.perfilUsuarioData['id']?.toString(), 
               name: _nameController.text,
               category: _category,
               rating: widget.businessToEdit?.rating ?? 5.0,
@@ -332,20 +370,30 @@ class _AddBusinessScreenState extends State<AddBusinessScreen> {
               representative: _repController.text,
               rfc: _rfcController.text,
               schedule: _scheduleController.text,
-              photos: _photoList.isEmpty ? ["https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=500"] : _photoList,
+              photos: finalPhotos, 
               reviews: widget.businessToEdit?.reviews ?? ["¡Bienvenidos a nuestro local!"],
             );
             
             if (widget.businessToEdit == null) {
-              provider.addBusiness(biz);
+              await provider.addBusiness(biz);
             } else {
-              provider.updateBusiness(biz);
+              await provider.updateBusiness(biz);
             }
-            Navigator.pop(context);
+            
+            if (mounted) {
+              setState(() => _isSaving = false);
+              Navigator.pop(context);
+            }
           }
         },
-        child: const Text("GUARDAR EN EL ECOSISTEMA", 
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        child: _isSaving
+            ? const SizedBox(
+                height: 25,
+                width: 25,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+              )
+            : const Text("GUARDAR EN EL ECOSISTEMA", 
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
   }

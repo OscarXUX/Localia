@@ -31,6 +31,14 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<LocaliaProvider>(context);
+    
+    // 🔥 PUNTO 2 COMPLETADO: Filtro de Seguridad para el Administrador
+    final currentUserId = state.perfilUsuarioData['id']?.toString();
+    
+    // Creamos una lista que SOLO contiene los negocios donde el usuario actual es el dueño
+    final misNegocios = state.businesses.where((biz) {
+      return biz.ownerId?.toString() == currentUserId;
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
@@ -39,6 +47,7 @@ class _AdminScreenState extends State<AdminScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
           onPressed: () {
             Provider.of<LocaliaProvider>(context, listen: false).setRole(false);
+            Navigator.pop(context);
           },
         ),
         title: const Text("Dashboard Admin", 
@@ -54,22 +63,24 @@ class _AdminScreenState extends State<AdminScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
-            _buildSectionTitle("Impacto en Guanajuato"),
+            _buildSectionTitle("Impacto de mis negocios"),
             const SizedBox(height: 15),
             
-            _buildPremiumImpactCard(state.totalSocialImpact, state.businesses.length),
+            // Reflejamos solo la cantidad de negocios que le pertenecen a este usuario
+            _buildPremiumImpactCard(state.totalSocialImpact, misNegocios.length),
 
             const SizedBox(height: 35),
-            _buildSectionTitle("Gestión de Locales y Cupones"),
+            _buildSectionTitle("Gestión de Mis Locales y Cupones"),
             const SizedBox(height: 15),
 
-            state.businesses.isEmpty 
+            // 🔥 Usamos la lista filtrada 'misNegocios' en lugar de la global
+            misNegocios.isEmpty 
               ? _buildEmptyState()
               : ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: state.businesses.length,
-                  itemBuilder: (context, index) => _buildBusinessItem(context, state.businesses[index]),                
+                  itemCount: misNegocios.length,
+                  itemBuilder: (context, index) => _buildBusinessItem(context, misNegocios[index]),                
                 ),
             const SizedBox(height: 100), 
           ],
@@ -97,7 +108,7 @@ class _AdminScreenState extends State<AdminScreen> {
         borderRadius: BorderRadius.circular(35),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF008F39).withOpacity(0.3), 
+            color: const Color(0xFF008F39).withValues(alpha: 0.3), 
             blurRadius: 20, 
             offset: const Offset(0, 10)
           )
@@ -116,7 +127,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2), 
+                  color: Colors.white.withValues(alpha: 0.2), 
                   borderRadius: BorderRadius.circular(12)
                 ),
                 child: const Icon(Icons.trending_up, color: Colors.white, size: 18),
@@ -135,7 +146,7 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           const SizedBox(height: 15),
           Text(
-            "Distribuidos en $count negocios locales de GTO", 
+            "Distribuidos en tus $count negocios registrados", 
             style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)
           ),
         ],
@@ -150,7 +161,7 @@ class _AdminScreenState extends State<AdminScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: Colors.black.withOpacity(0.03)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.03)),
       ),
       child: ListTile(
         leading: CircleAvatar(
@@ -193,7 +204,12 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget _buildEmptyState() {
-    return const Center(child: Text("Sin negocios aún", style: TextStyle(color: Colors.grey)));
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.only(top: 40.0),
+        child: Text("Aún no tienes negocios registrados", style: TextStyle(color: Colors.grey, fontSize: 16)),
+      ),
+    );
   }
 
   // --- FORMULARIO EMERGENTE PARA CREAR PROMOCIÓN ---

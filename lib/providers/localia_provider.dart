@@ -5,8 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../models/business.dart';
 import '../config/constants.dart';
+import 'package:http_parser/http_parser.dart';
 
-// Modelo para los eventos del mundial
+// Modelo para los eventos deportivos/turísticos
 class WorldCupEvent {
   final String matchTitle;
   WorldCupEvent({required this.matchTitle});
@@ -17,6 +18,7 @@ class LocaliaProvider with ChangeNotifier {
   // 1. ESTADO DE LA APP Y RED
   // ---------------------------------------------------------
   
+  // Detección automática de la IP según la plataforma (Web, Emulador o Físico)
   final String _ip = kIsWeb ? 'localhost' : (defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost');
 
   double _balance = 2500.0;
@@ -36,7 +38,6 @@ class LocaliaProvider with ChangeNotifier {
   bool _showSuccess = false;
   bool _isLoadingBackend = false; 
   bool _isAuthenticated = false;
-  bool get isAuthenticated => _isAuthenticated;
   
   final List<WorldCupEvent> _events = [
     WorldCupEvent(matchTitle: "🇲🇽 México vs 🇩🇪 Alemania - 18:00 hrs"),
@@ -50,11 +51,12 @@ class LocaliaProvider with ChangeNotifier {
   Future<void> _init() async {
     await _loadFromDisk();
     _isLoaded = true;
-    debugPrint("🚀 LocaliaProvider: Caché local lista. Sincronizando con los 5 microservicios...");
+    debugPrint("🚀 LocaliaProvider: Caché local lista. Sincronizando con la Base de Datos...");
     await sincronizarEcosistema();
   }
 
   // --- GETTERS ---
+  bool get isAuthenticated => _isAuthenticated;
   double get balance => _balance;
   int get coppelPoints => _coppelPoints;
   double get totalSocialImpact => _totalSocialImpact;
@@ -64,143 +66,80 @@ class LocaliaProvider with ChangeNotifier {
   bool get isLoadingBackend => _isLoadingBackend;
   
   List<Business> get businesses => _allBusinesses;
-  List<Business> get filteredBusinesses => _allBusinesses;
+  List<Business> get filteredBusinesses => _allBusinesses; // Aquí puedes meter lógica de filtros de búsqueda después
   List<String> get favorites => _favoriteIds;
   List<String> get history => _history;
   List<WorldCupEvent> get events => _events;
   
-  Map<String, dynamic> get perfil => perfilUsuario;
+  Map<String, dynamic> get perfilUsuarioData => perfilUsuario; 
   List<dynamic> get cupones => cuponesActivos;
 
   // ---------------------------------------------------------
   // 2. LÓGICA DE PERSISTENCIA Y MICROSERVICIOS
   // ---------------------------------------------------------
 
-  Future<void> sincronizarEcosistema() async {
-    _isLoadingBackend = true;
-    notifyListeners();
-
-    try {
-      final resNegocios = await http.get(Uri.parse('http://$_ip:3000/api/v1/negocios'));
-      if (resNegocios.statusCode == 200) {
-        final List<dynamic> dataJson = json.decode(resNegocios.body)['data'];
-        _allBusinesses = dataJson.map((json) => Business.fromJson(json)).toList();
-      }
-
-      final resWallet = await http.get(Uri.parse('http://$_ip:3001/api/v1/wallet'));
-      if (resWallet.statusCode == 200) {
-        final dataWallet = json.decode(resWallet.body)['data'];
-        _balance = (dataWallet['balance'] as num).toDouble();
-        _coppelPoints = dataWallet['coppelPoints'];
-        _totalSocialImpact = (dataWallet['totalSocialImpact'] as num).toDouble();
-        _history = List<String>.from(dataWallet['history']);
-      }
-
-      // Por defecto, al iniciar carga el perfil premium
-      final resUsuario = await http.get(Uri.parse('http://$_ip:3003/api/v1/usuarios/perfil?tipo=premium'));
-      if (resUsuario.statusCode == 200) {
-        perfilUsuario = json.decode(resUsuario.body)['data'];
-      }
-
-      final resPromos = await http.get(Uri.parse('http://$_ip:3004/api/v1/promociones'));
-      if (resPromos.statusCode == 200) {
-        cuponesActivos = json.decode(resPromos.body)['data'];
-      }
-
-      await _saveToDisk();
-      debugPrint("✅ Ecosistema Localia sincronizado con éxito.");
-      
-    } catch (e) {
-      debugPrint("❌ Error al conectar con los microservicios: $e");
-    } finally {
-      _isLoadingBackend = false;
-      notifyListeners(); 
-    }
-  }
-
-  // 🔥 NUEVA FUNCIÓN: Cambiar de Usuario Dinámicamente
-  Future<void> cambiarUsuario(String tipoUsuario) async {
-    _isLoadingBackend = true;
-    notifyListeners(); // Muestra el spinner de carga en la app
-
-    try {
-      // Va al microservicio 3003 y le pide el perfil específico
-      final resUsuario = await http.get(Uri.parse('http://$_ip:3003/api/v1/usuarios/perfil?tipo=$tipoUsuario'));
-      
-      if (resUsuario.statusCode == 200) {
-        perfilUsuario = json.decode(resUsuario.body)['data'];
-        debugPrint("✅ Usuario cambiado exitosamente a: $tipoUsuario");
-      }
-    } catch (e) {
-      debugPrint("❌ Error al cambiar de usuario: $e");
-    } finally {
-      _isLoadingBackend = false;
-      notifyListeners(); // Redibuja la pantalla de perfil con los nuevos datos
-    }
-  }
-  // 🔥 NUEVA FUNCIÓN: Registrar usuario desde el formulario
-  Future<void> registrarUsuario(String nombre, String email) async {
-    _isLoadingBackend = true;
-    notifyListeners();
-
-    try {
-      final res = await http.post(
-        Uri.parse('http://$_ip:3003/api/v1/usuarios/registro'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'name': nombre,
-          'email': email,
-        }),
-      );
-
-      if (res.statusCode == 201) {
-        perfilUsuario = json.decode(res.body)['data'];
-        debugPrint("✅ Nuevo usuario registrado y logueado exitosamente.");
-      }
-    } catch (e) {
-      debugPrint("❌ Error al registrar usuario: $e");
-    } finally {
-      _isLoadingBackend = false;
+// 🔥 LÓGICA REPARADA: Sincronización Silenciosa
+  Future<void> sincronizarEcosistema({bool silencioso = false}) async {
+    // Si NO es silencioso, avisamos que empezó a cargar
+    if (!silencioso) {
+      _isLoadingBackend = true;
       notifyListeners();
     }
-  }
-  // 🔥 NUEVA FUNCIÓN: Crear promoción ligada a un negocio
-  Future<void> crearPromocion(String businessId, String nombreNegocio, String titulo, String descuento, String descripcion, String expiracion) async {
-    _isLoadingBackend = true;
-    notifyListeners();
 
-    // Estructuramos el JSON exactamente como lo pide Node.js
-    final nuevaPromo = {
-      'businessId': businessId,
-      'negocio': nombreNegocio,
-      'titulo': titulo,
-      'descuento': descuento,
-      'descripcion': descripcion,
-      'expiracion': expiracion
-    };
-
-    // 1. Optimistic UI: Lo agregamos a la pantalla al instante
-    cuponesActivos.add(nuevaPromo);
-
-    // 2. Lo enviamos al Puerto 3004
     try {
-      await http.post(
-        Uri.parse('http://$_ip:3004/api/v1/promociones'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(nuevaPromo),
-      );
-      debugPrint("✅ Promoción de $nombreNegocio creada en el servidor 3004.");
+      // 1. NEGOCIOS (Puerto 3000) -> Con inner try/catch para evitar bloqueos
+      try {
+        final resNegocios = await http.get(Uri.parse('http://$_ip:3000/api/v1/negocios'));
+        if (resNegocios.statusCode == 200) {
+          final List<dynamic> dataJson = json.decode(resNegocios.body)['data'];
+          _allBusinesses = dataJson.map((json) => Business.fromJson(json)).toList();
+          debugPrint("✅ SQL Server: ${_allBusinesses.length} negocios cargados con éxito.");
+        }
+      } catch (e) {
+        debugPrint("⚠️ Servidor de Negocios desconectado o con error.");
+      }
+
+      // 2. BILLETERA VIRTUAL (Puerto 3001)
+      try {
+        final resWallet = await http.get(Uri.parse('http://$_ip:3001/api/v1/wallet'));
+        if (resWallet.statusCode == 200) {
+          final dataWallet = json.decode(resWallet.body)['data'];
+          _balance = (dataWallet['balance'] as num).toDouble();
+          _coppelPoints = dataWallet['coppelPoints'];
+          _totalSocialImpact = (dataWallet['totalSocialImpact'] as num).toDouble();
+          _history = List<String>.from(dataWallet['history']);
+        }
+      } catch (e) {
+        debugPrint("⚠️ Servidor de Wallet desconectado. Usando caché.");
+      }
+
+      // 3. PROMOCIONES (Puerto 3004)
+      try {
+        final resPromos = await http.get(Uri.parse('http://$_ip:3004/api/v1/promociones'));
+        if (resPromos.statusCode == 200) {
+          cuponesActivos = json.decode(resPromos.body)['data'];
+        }
+      } catch (e) {
+        debugPrint("⚠️ Servidor de Promos desconectado. Usando caché.");
+      }
+
+      await _saveToDisk(); 
+      
     } catch (e) {
-      debugPrint("❌ Error al crear promoción de red: $e");
+      debugPrint("❌ Error crítico en sincronizarEcosistema: $e");
     } finally {
-      _isLoadingBackend = false;
-      notifyListeners();
+      // Si NO es silencioso, avisamos que ya terminó
+      if (!silencioso) {
+        _isLoadingBackend = false;
+        notifyListeners(); 
+      }
     }
   }
-  // 🔥 NUEVA FUNCIÓN: Inicio de sesión con SQL Server
+
+  // 🔥 LOGIN REPARADO: Sin colisiones de redibujo
   Future<bool> login(String email, String password) async {
     _isLoadingBackend = true;
-    notifyListeners();
+    notifyListeners(); // 1️⃣ Un solo aviso de carga al inicio
 
     try {
       final res = await http.post(
@@ -211,27 +150,154 @@ class LocaliaProvider with ChangeNotifier {
 
       if (res.statusCode == 200) {
         perfilUsuario = json.decode(res.body)['data'];
-        _isAdmin = perfilUsuario['role'] == 'admin'; // Asigna rol según SQL
+        _isAdmin = perfilUsuario['role'] == 'admin'; 
         _isAuthenticated = true;
-        notifyListeners();
-        return true;
+        
+        // 2️⃣ Pedimos los negocios, pero le decimos que no congele la pantalla
+        await sincronizarEcosistema(silencioso: true); 
+        
+        return true; // Terminó todo perfecto
       }
     } catch (e) {
-      debugPrint("❌ Error en login: $e");
+      debugPrint("❌ Error al intentar login: $e");
+    } finally {
+      _isLoadingBackend = false;
+      notifyListeners(); // 3️⃣ Un solo aviso de carga al final
+    }
+    return false;
+  }
+  // 🔥 NUEVA FUNCIÓN: Subir imagen del negocio al servidor
+  Future<String?> subirImagenNegocio(dynamic imageFile) async {
+    _isLoadingBackend = true;
+    notifyListeners();
+
+    try {
+      // Este será el endpoint en Node.js que crearemos en el Paso 2
+      final url = Uri.parse('http://$_ip:3000/api/v1/negocios/upload'); 
+      final request = http.MultipartRequest('POST', url);
+
+      // Leemos la imagen como bytes (Súper importante para que no crashee en Web)
+      final bytes = await imageFile.readAsBytes();
+
+      // Armamos el paquete que Node.js está esperando
+      final multipartFile = http.MultipartFile.fromBytes(
+        'image', // Este nombre es clave, Node.js lo buscará así
+        bytes,
+        filename: imageFile.name,
+        contentType: MediaType('image', 'jpeg'), 
+      );
+
+      request.files.add(multipartFile);
+
+      // Disparamos el archivo hacia el backend
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
+      final jsonRes = json.decode(responseData);
+
+      if (response.statusCode == 200) {
+        // Si todo sale bien, Node.js nos devolverá el enlace web de la foto guardada
+        debugPrint("✅ Imagen subida con éxito: ${jsonRes['imageUrl']}");
+        return jsonRes['imageUrl']; 
+      } else {
+        debugPrint("⚠️ El servidor rechazó la imagen.");
+      }
+    } catch (e) {
+      debugPrint("❌ Error crítico al subir imagen: $e");
+    } finally {
+      _isLoadingBackend = false;
+      notifyListeners();
+    }
+    
+    return null; // Retorna nulo si falló
+  }
+  // 🔥 MÉTODO REPARADO: Ahora sí guarda las modificaciones en SQL Server
+  Future<void> updateBusiness(Business updatedBiz) async {
+    // 1. Actualización optimista: Cambiamos la pantalla al instante para que se sienta rápido
+    final index = _allBusinesses.indexWhere((biz) => biz.id == updatedBiz.id);
+    if (index != -1) {
+      _allBusinesses[index] = updatedBiz;
+      await _saveToDisk();
+      notifyListeners();
+    }
+
+    // 2. Disparamos la actualización al Backend (Node.js)
+    try {
+      // Usamos el método PUT apuntando al ID específico del negocio
+      final res = await http.put(
+        Uri.parse('http://$_ip:3000/api/v1/negocios/${updatedBiz.id}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(updatedBiz.toJson()),
+      );
+
+      if (res.statusCode == 200) {
+        debugPrint("✅ Negocio editado y guardado permanentemente en SQL Server.");
+      } else {
+        debugPrint("⚠️ El servidor rechazó la edición. Código: ${res.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("❌ Error de red al intentar editar el negocio: $e");
+    }
+  }
+
+  // Registro de usuario nuevo
+  Future<bool> registrarUsuario(String nombre, String email, String password, String rol) async {
+    _isLoadingBackend = true;
+    notifyListeners();
+
+    try {
+      final res = await http.post(
+        Uri.parse('http://$_ip:3003/api/v1/usuarios/registro'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'name': nombre,
+          'email': email,
+          'password': password,
+          'role': rol
+        }),
+      );
+
+      if (res.statusCode == 201) {
+        return true; 
+      }
+    } catch (e) {
+      debugPrint("❌ Error al registrar usuario: $e");
     } finally {
       _isLoadingBackend = false;
       notifyListeners();
     }
     return false;
   }
-  
-  // Función para cerrar sesión limpiamente
+
   void logout() {
     _isAuthenticated = false;
     _isAdmin = false;
     perfilUsuario = {};
     notifyListeners();
   }
+
+  // Cambiar usuario (Ideal para pruebas rápidas de roles)
+  Future<void> cambiarUsuario(String tipoUsuario) async {
+    _isLoadingBackend = true;
+    notifyListeners(); 
+
+    try {
+      final resUsuario = await http.get(Uri.parse('http://$_ip:3003/api/v1/usuarios/perfil?tipo=$tipoUsuario'));
+      if (resUsuario.statusCode == 200) {
+        perfilUsuario = json.decode(resUsuario.body)['data'];
+        _isAdmin = perfilUsuario['role'] == 'admin';
+        debugPrint("✅ Usuario cambiado exitosamente a: $tipoUsuario");
+      }
+    } catch (e) {
+      debugPrint("❌ Error al cambiar de usuario: $e");
+    } finally {
+      _isLoadingBackend = false;
+      notifyListeners(); 
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 3. PERSISTENCIA LOCAL (OFFLINE FIRST)
+  // ---------------------------------------------------------
 
   Future<void> _saveToDisk() async {
     if (!_isLoaded) return;
@@ -264,11 +330,6 @@ class LocaliaProvider with ChangeNotifier {
       List<String>? savedBiz = prefs.getStringList('businesses');
       if (savedBiz != null && savedBiz.isNotEmpty) {
         _allBusinesses = savedBiz.map((item) => Business.fromJson(jsonDecode(item))).toList();
-      } else {
-        _allBusinesses = [
-          Business(id: '1', name: 'Tacos El Mundial', category: 'Comida', rating: 4.9, icon: Icons.restaurant, mapX: 0.2, mapY: 0.4),
-          Business(id: '2', name: 'Artesanías GTO', category: 'Artesanía', rating: 4.8, icon: Icons.palette, mapX: 0.7, mapY: 0.5),
-        ];
       }
       notifyListeners();
     } catch (e) {
@@ -277,8 +338,24 @@ class LocaliaProvider with ChangeNotifier {
   }
 
   // ---------------------------------------------------------
-  // 3. MÉTODOS DE ACCIÓN Y NEGOCIO
+  // 4. MÉTODOS DE ACCIÓN Y NEGOCIO
   // ---------------------------------------------------------
+
+  Future<void> addBusiness(Business business) async {
+    _allBusinesses.add(business);
+    await _saveToDisk();
+    notifyListeners();
+
+    try {
+      await http.post(
+        Uri.parse('http://$_ip:3000/api/v1/negocios'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(business.toJson()), 
+      );
+    } catch (e) {
+      debugPrint("⚠️ Guardado local exitoso. Error de red: $e");
+    }
+  }
 
   Future<void> addReviewToBusiness(String businessId, String review) async {
     final index = _allBusinesses.indexWhere((b) => b.id == businessId);
@@ -315,82 +392,47 @@ class LocaliaProvider with ChangeNotifier {
     }
   }
 
-  Future<void> addBusiness(Business business) async {
-    _allBusinesses.add(business);
-    await _saveToDisk();
+  Future<void> crearPromocion(String businessId, String nombreNegocio, String titulo, String descuento, String descripcion, String expiracion) async {
+    _isLoadingBackend = true;
     notifyListeners();
+
+    final nuevaPromo = {
+      'businessId': businessId,
+      'negocio': nombreNegocio,
+      'titulo': titulo,
+      'descuento': descuento,
+      'descripcion': descripcion,
+      'expiracion': expiracion
+    };
+
+    cuponesActivos.add(nuevaPromo);
 
     try {
       await http.post(
-        Uri.parse('http://$_ip:3000/api/v1/negocios'),
+        Uri.parse('http://$_ip:3004/api/v1/promociones'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(business.toJson()), 
+        body: json.encode(nuevaPromo),
       );
+      debugPrint("✅ Promoción de $nombreNegocio creada en el servidor 3004.");
     } catch (e) {
-      debugPrint("⚠️ Guardado local exitoso. Error de red: $e");
-    }
-  }
-
-  void setRole(bool value) {
-    _isAdmin = value;
-    _saveToDisk();
-    notifyListeners();
-  }
-
-  void deleteBusiness(String id) {
-    _allBusinesses.removeWhere((biz) => biz.id == id);
-    _saveToDisk();
-    notifyListeners();
-  }
-
-  void updateBusiness(Business updatedBiz) {
-    final index = _allBusinesses.indexWhere((biz) => biz.id == updatedBiz.id);
-    if (index != -1) {
-      _allBusinesses[index] = updatedBiz;
-      _saveToDisk();
+      debugPrint("❌ Error al crear promoción de red: $e");
+    } finally {
+      _isLoadingBackend = false;
       notifyListeners();
     }
   }
 
-  void toggleFavorite(String id) {
-    if (_favoriteIds.contains(id)) {
-      _favoriteIds.remove(id);
-    } else {
-      _favoriteIds.add(id);
-    }
-    _saveToDisk();
-    notifyListeners();
-  }
-
-  void auditarSeguridadSandbox() {
-    debugPrint("🔒 AUDITORÍA DE SEGURIDAD NATIVA - SANDBOX LOCALIA");
-    debugPrint(" Saldo Disponible Wallet: \$$_balance MXN");
-    debugPrint(" Puntos Coppel Acumulados: $_coppelPoints");
-    debugPrint(" Impacto Social en Sedes Mundial: \$$_totalSocialImpact MXN");
-    debugPrint(" Rol de Usuario actual: ${_isAdmin ? 'ADMINISTRADOR' : 'TURISTA'}");
-    debugPrint(" Número de PyMEs Registradas en Disco: ${_allBusinesses.length}");
-  }
-
-  bool isFavorite(String id) => _favoriteIds.contains(id);
-  void dismissSuccess() {
-    _showSuccess = false;
-    notifyListeners();
-  }
-
-  // 🔥 MÉTODO ACTUALIZADO: Hacer un pago real al backend
   Future<void> makePurchase(double amount, String businessName) async {
     if (_balance >= amount) {
       _isProcessing = true;
       notifyListeners();
 
-      // 1. Optimistic UI: Actualizamos la pantalla al instante para que se sienta rápido
       _balance -= amount;
       _totalSocialImpact += amount;
       _coppelPoints += (amount * 0.1).toInt();
       _history.insert(0, "Pago en $businessName: -\$${amount.toStringAsFixed(2)}");
       await _saveToDisk();
 
-      // 2. Transacción Backend: Enviamos la orden al microservicio 3001
       try {
         final res = await http.post(
           Uri.parse('http://$_ip:3001/api/v1/wallet/transaccion'),
@@ -403,14 +445,11 @@ class LocaliaProvider with ChangeNotifier {
 
         if (res.statusCode == 200) {
           debugPrint("✅ Transacción de \$$amount procesada en el servidor 3001.");
-        } else {
-          debugPrint("⚠️ El servidor rechazó el pago (Posible falta de fondos).");
         }
       } catch (e) {
         debugPrint("❌ Error de red al procesar pago: $e");
       }
 
-      // Animación de Coppel Pay 
       await Future.delayed(const Duration(milliseconds: 1200));
 
       _isProcessing = false;
@@ -419,7 +458,6 @@ class LocaliaProvider with ChangeNotifier {
     }
   }
 
-  // 🔥 NUEVA FUNCIÓN: Por si quieres agregar un botón de recarga después
   Future<void> recargarCartera(double amount) async {
     _isProcessing = true;
     notifyListeners();
@@ -436,7 +474,6 @@ class LocaliaProvider with ChangeNotifier {
         _balance = (newData['balance'] as num).toDouble();
         _history = List<String>.from(newData['history']);
         await _saveToDisk();
-        debugPrint("✅ Recarga de \$$amount exitosa.");
       }
     } catch (e) {
       debugPrint("❌ Error al recargar: $e");
@@ -444,5 +481,42 @@ class LocaliaProvider with ChangeNotifier {
       _isProcessing = false;
       notifyListeners();
     }
+  }
+
+  void setRole(bool value) {
+    _isAdmin = value;
+    _saveToDisk();
+    notifyListeners();
+  }
+
+  void deleteBusiness(String id) {
+    _allBusinesses.removeWhere((biz) => biz.id == id);
+    _saveToDisk();
+    notifyListeners();
+  }
+
+ 
+  void toggleFavorite(String id) {
+    if (_favoriteIds.contains(id)) {
+      _favoriteIds.remove(id);
+    } else {
+      _favoriteIds.add(id);
+    }
+    _saveToDisk();
+    notifyListeners();
+  }
+
+  void dismissSuccess() {
+    _showSuccess = false;
+    notifyListeners();
+  }
+
+  bool isFavorite(String id) => _favoriteIds.contains(id);
+
+  void auditarSeguridadSandbox() {
+    debugPrint("🔒 AUDITORÍA DE SEGURIDAD NATIVA - SANDBOX LOCALIA");
+    debugPrint(" Saldo Disponible Wallet: \$$_balance MXN");
+    debugPrint(" Rol de Usuario actual: ${_isAdmin ? 'ADMINISTRADOR' : 'TURISTA'}");
+    debugPrint(" Número de PyMEs Registradas en Disco: ${_allBusinesses.length}");
   }
 }

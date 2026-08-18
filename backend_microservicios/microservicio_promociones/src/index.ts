@@ -41,6 +41,17 @@ app.post('/api/v1/promociones', (req: Request, res: Response) => {
     // Guardamos la promo en memoria
     promocionesDB.push(nuevaPromo);
 
+    // 🔥 CONSOLA VISUAL: Imprimimos la alerta en la terminal
+    console.log(`\n======================================================`);
+    console.log(` 🎟️ NUEVO CUPÓN PUBLICADO EN EL ECOSISTEMA LOCALIA `);
+    console.log(`======================================================`);
+    console.log(` 🏢 Local        : ${nuevaPromo.negocio}`);
+    console.log(` 🎁 Promoción    : ${nuevaPromo.titulo}`);
+    console.log(` ✂️ Descuento    : ${nuevaPromo.descuento}`);
+    console.log(` 💬 Condiciones  : ${nuevaPromo.descripcion}`);
+    console.log(` ⏳ Válido hasta : ${nuevaPromo.expiracion}`);
+    console.log(`======================================================\n`);
+
     res.status(201).json({
         status: 'success',
         data: nuevaPromo

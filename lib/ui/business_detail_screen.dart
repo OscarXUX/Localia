@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/business.dart';
@@ -49,7 +48,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pasamos 'provider' directamente
                   _buildMainHeader(activeBusiness, provider),
                   const SizedBox(height: 16),
 
@@ -70,20 +68,21 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                   ),
                   const SizedBox(height: 25),
 
+                  // 🔥 AQUÍ SE DIBUJAN TUS ÍCONOS DE CONTACTO Y UBICACIÓN
                   _buildInfoTile(
                     Icons.access_time_filled_rounded,
                     "Horario de atención",
-                    activeBusiness.schedule,
+                    activeBusiness.schedule.isEmpty ? "9:00 AM - 6:00 PM" : activeBusiness.schedule,
                   ),
                   _buildInfoTile(
                     Icons.location_on_rounded,
                     "Ubicación",
-                    activeBusiness.address,
+                    activeBusiness.address.isEmpty ? "Guanajuato, México" : activeBusiness.address,
                   ),
                   _buildInfoTile(
                     Icons.phone_rounded,
                     "Contacto directo",
-                    activeBusiness.phone,
+                    activeBusiness.phone.isEmpty ? "No disponible" : activeBusiness.phone,
                   ),
 
                   const SizedBox(height: 35),
@@ -137,7 +136,6 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   }
 
   Widget _buildMainHeader(Business activeBusiness, LocaliaProvider provider) {
-    // Usamos el provider que recibimos por parámetro
     final bool esFavorito = provider.isFavorite(activeBusiness.id);
 
     return Column(
@@ -289,12 +287,28 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                 itemCount: photos.length,
                 itemBuilder: (context, index) {
                   String imagePath = photos[index];
-                  return Image(
-                    image: imagePath.startsWith('http')
-                        ? NetworkImage(imagePath)
-                        : FileImage(File(imagePath)) as ImageProvider,
-                    fit: BoxFit.cover,
-                  );
+                  
+                  // 🔥 SOLUCIÓN AL ERROR WEB (_Namespace): 
+                  // Usamos constructores seguros para la web en lugar de dart:io
+                  Widget imageWidget;
+                  
+                  if (imagePath.startsWith('http')) {
+                    imageWidget = Image.network(
+                      imagePath,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => _buildErrorImage(),
+                    );
+                  } else if (imagePath.startsWith('assets/')) {
+                    imageWidget = Image.asset(
+                      imagePath,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => _buildErrorImage(),
+                    );
+                  } else {
+                    imageWidget = _buildErrorImage();
+                  }
+                  
+                  return imageWidget;
                 },
               ),
             Container(
@@ -322,6 +336,23 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
             ),
             onPressed: () => Navigator.pop(context),
           ),
+        ),
+      ),
+    );
+  }
+
+  // Widget de apoyo por si la imagen falla al cargar
+  Widget _buildErrorImage() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported_rounded, size: 50, color: Colors.grey),
+            SizedBox(height: 10),
+            Text("Imagen no disponible", style: TextStyle(color: Colors.grey)),
+          ],
         ),
       ),
     );
