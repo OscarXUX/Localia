@@ -21,10 +21,13 @@ class _TouristPortalState extends State<TouristPortal> {
   @override
   void initState() {
     super.initState();
-    
+
     // Dispara la consulta al microservicio en segundo plano al cargar la vista
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<LocaliaProvider>(context, listen: false).sincronizarEcosistema();
+      Provider.of<LocaliaProvider>(
+        context,
+        listen: false,
+      ).sincronizarEcosistema();
     });
   }
 
@@ -47,6 +50,11 @@ class _TouristPortalState extends State<TouristPortal> {
                   const SizedBox(height: 10),
                   _buildAppleHeader(context, state),
                   const SizedBox(height: 15),
+
+                  // 🔥 NUEVO: Barra de búsqueda estandarizada con el diseño Perfil
+                  _buildSearchBar(),
+                  const SizedBox(height: 15),
+
                   _buildWorldCupTicker(state),
                   const Spacer(),
                   _buildBusinessCarousel(state),
@@ -55,15 +63,18 @@ class _TouristPortalState extends State<TouristPortal> {
               ),
             ),
           ),
-          
+
           // 3. OVERLAY DE CARGA: Se activa durante las transacciones locales
           if (state.isProcessing)
             Container(
-              color: Colors.black26, 
-              child: const Center(child: CircularProgressIndicator(color: LocaliaTheme.coppelGreen))
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: LocaliaTheme.coppelGreen,
+                ),
+              ),
             ),
-          if (state.showSuccess)
-            const SuccessOverlay(),
+          if (state.showSuccess) const SuccessOverlay(),
         ],
       ),
       // AQUÍ ESTÁ LA MAGIA: Una columna que agrupa los dos botones flotantes
@@ -85,77 +96,177 @@ class _TouristPortalState extends State<TouristPortal> {
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/mapa_gto.png'), 
-          fit: BoxFit.cover, 
-          opacity: 0.7
+          image: AssetImage('assets/images/mapa_gto.png'),
+          fit: BoxFit.cover,
+          opacity: 0.7,
         ),
       ),
       child: Stack(
         children: [
           // Si está cargando el backend y aún no hay datos, mostramos un indicador central
           if (state.isLoadingBackend && state.filteredBusinesses.isEmpty)
-            const Center(child: CircularProgressIndicator(color: LocaliaTheme.coppelGreen)),
-            
-          ...state.filteredBusinesses.map((biz) => Positioned(
-            left: MediaQuery.of(context).size.width * biz.mapX,
-            top: MediaQuery.of(context).size.height * biz.mapY,
-            child: _MapMarker(business: biz),
-          )),
+            const Center(
+              child: CircularProgressIndicator(color: LocaliaTheme.coppelGreen),
+            ),
+
+          ...state.filteredBusinesses.map(
+            (biz) => Positioned(
+              left: MediaQuery.of(context).size.width * biz.mapX,
+              top: MediaQuery.of(context).size.height * biz.mapY,
+              child: _MapMarker(business: biz),
+            ),
+          ),
         ],
       ),
     );
   }
 
+  // 🔥 ACTUALIZADO: Encabezado rediseñado con el estilo de la vista de Perfil
   Widget _buildAppleHeader(BuildContext context, LocaliaProvider state) {
     return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: LocaliaTheme.glassStyle,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          const SizedBox(width: 15),
+          const SizedBox(width: 5),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("Saldo Coppel Pay", 
-                  style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
-                Text("\$${state.balance.toStringAsFixed(2)}", 
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                const Text(
+                  "Saldo Coppel Pay",
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  "\$${state.balance.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
+                    color: Colors.black87,
+                  ),
+                ),
               ],
             ),
           ),
           // Botón Cartera
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const WalletScreen())),
-            child: const CircleAvatar(
-              backgroundColor: LocaliaTheme.coppelGreen, 
-              child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 20)
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (c) => const WalletScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: LocaliaTheme.coppelGreen,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           // Botón Perfil
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ProfileScreen())),
-            child: const CircleAvatar(
-              backgroundColor: Color(0xFFE5E5EA), 
-              child: Icon(Icons.person_rounded, color: Colors.black87, size: 20)
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (c) => const ProfileScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: Colors.black87,
+                size: 20,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
         ],
       ),
     );
   }
 
+  // 🔥 NUEVO: Método integrado para la barra de búsqueda visual
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: "¿Qué se te antoja buscar hoy?",
+          hintStyle: const TextStyle(
+            color: Colors.black38,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: const Icon(Icons.search_rounded, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          suffixIcon: Container(
+            margin: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.tune_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 ACTUALIZADO: Ticker suavizado para encajar con el nuevo estilo
   Widget _buildWorldCupTicker(LocaliaProvider state) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFD32F2F), Color(0xFFB71C1C)]),
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD32F2F), Color(0xFFB71C1C)],
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.red.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))
+          BoxShadow(
+            color: Colors.red.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -164,11 +275,11 @@ class _TouristPortalState extends State<TouristPortal> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              state.events[0].matchTitle, 
+              state.events[0].matchTitle,
               style: const TextStyle(
-                color: Colors.white, 
-                fontWeight: FontWeight.bold, 
-                letterSpacing: 0.5
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
@@ -182,16 +293,27 @@ class _TouristPortalState extends State<TouristPortal> {
   Widget _buildBusinessCarousel(LocaliaProvider state) {
     // Si la red está activa y no hay datos locales, ponemos un esqueleto visual de carga
     if (state.isLoadingBackend && state.filteredBusinesses.isEmpty) {
-      return const SizedBox(
+      return Container(
         height: 180,
-        child: Center(
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black.withOpacity(0.08), width: 1.5),
+        ),
+        child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(color: LocaliaTheme.coppelGreen),
-              SizedBox(height: 10),
-              Text("Cargando comercios de Guanajuato...", 
-                style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
+              SizedBox(height: 12),
+              Text(
+                "Cargando comercios de Guanajuato...",
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -204,23 +326,29 @@ class _TouristPortalState extends State<TouristPortal> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: state.filteredBusinesses.length,
-        itemBuilder: (c, i) => BusinessCard(business: state.filteredBusinesses[i]),
+        itemBuilder: (c, i) =>
+            BusinessCard(business: state.filteredBusinesses[i]),
       ),
     );
   }
 
-  // NUEVO BOTÓN PARA DESPLEGAR EL BOTTOM SHEET DE PROMOCIONES
   Widget _buildPromocionesFAB(BuildContext context) {
     return FloatingActionButton.extended(
-      heroTag: 'btnPromociones', // El heroTag evita errores de animación si hay más de un botón flotante
+      heroTag: 'btnPromociones',
       backgroundColor: LocaliaTheme.coppelYellow,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       onPressed: () {
         PromocionesBottomSheet.mostrar(context);
       },
-      label: const Text("CUPONES", 
-        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, color: Colors.black87)),
+      label: const Text(
+        "CUPONES",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+          color: Colors.black87,
+        ),
+      ),
       icon: const Icon(Icons.local_offer_rounded, color: Colors.black87),
     );
   }
@@ -229,17 +357,26 @@ class _TouristPortalState extends State<TouristPortal> {
     return FloatingActionButton.extended(
       heroTag: 'btnAsistente',
       backgroundColor: LocaliaTheme.coppelGreen,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const AIChatScreen())),
-      label: const Text("AI ASSISTANT", 
-        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, color: Colors.white)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (c) => const AIChatScreen()),
+      ),
+      label: const Text(
+        "AI ASSISTANT",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+          color: Colors.white,
+        ),
+      ),
       icon: const Icon(Icons.auto_awesome, color: Colors.white),
     );
   }
 }
 
-// MARCADOR EN EL MAPA
+// 🔥 ACTUALIZADO: Marcador en el mapa rediseñado
 class _MapMarker extends StatelessWidget {
   final dynamic business;
   const _MapMarker({required this.business});
@@ -247,16 +384,27 @@ class _MapMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => BusinessDetailScreen(business: business))),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (c) => BusinessDetailScreen(business: business),
+        ),
+      ),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
-          border: Border.all(color: LocaliaTheme.coppelGreen, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: LocaliaTheme.coppelGreen, width: 2.5),
         ),
-        child: Icon(business.icon, color: LocaliaTheme.coppelGreen, size: 24),
+        child: Icon(business.icon, color: LocaliaTheme.coppelGreen, size: 22),
       ),
     );
   }
